@@ -1,0 +1,2094 @@
+openapi: 3.0.3
+info:
+  title: Teslog API
+  description: >
+    Self-hosted Tesla vehicle data logging platform. Tracks drives, charges,
+    idle sessions, battery health, and firmware updates via Tesla Fleet
+    Telemetry.
+  version: 1.0.0
+  license:
+    name: MIT
+
+servers:
+  - url: "{server_url}/api"
+    variables:
+      server_url:
+        default: http://localhost
+        description: Base URL of the Teslog instance
+
+tags:
+  - name: System
+    description: Health checks and setup status
+  - name: Auth
+    description: Registration, login, logout, and token management
+  - name: Vehicles
+    description: Vehicle CRUD, status, and timeline
+  - name: Drives
+    description: Drive sessions
+  - name: Charges
+    description: Charge sessions
+  - name: Idles
+    description: Idle / parked sessions
+  - name: Places
+    description: Saved locations with geofencing and electricity rates
+  - name: Analytics
+    description: Efficiency, energy, cost, and calendar analytics
+  - name: Battery & Firmware
+    description: Battery degradation tracking and firmware history
+  - name: Export
+    description: CSV data exports
+  - name: Commands
+    description: Execute vehicle commands via Tesla API
+  - name: Tesla Setup
+    description: List, link, refresh, and unlink Tesla vehicles
+  - name: Telemetry
+    description: Internal telemetry ingestion from fleet-telemetry
+
+security:
+  - bearerAuth: []
+
+paths:
+  # ── System ──────────────────────────────────────────────────────────
+  /v1/system/status:
+    get:
+      tags: [System]
+      summary: System health check
+      security: []
+      operationId: systemStatus
+      responses:
+        "200":
+          description: System status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: healthy
+                  version:
+                    type: string
+                    example: 1.0.0
+                  setup_complete:
+                    type: boolean
+
+  /v1/system/setup:
+    get:
+      tags: [System]
+      summary: Setup status for initial configuration
+      security: []
+      operationId: setupStatus
+      responses:
+        "200":
+          description: Setup flags
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  has_user:
+                    type: boolean
+                  registration_open:
+                    type: boolean
+                  tesla_configured:
+                    type: boolean
+                  telemetry_configured:
+                    type: boolean
+
+  # ── Auth ────────────────────────────────────────────────────────────
+  /v1/auth/register:
+    post:
+      tags: [Auth]
+      summary: Register the first user (first-run only)
+      security: []
+      operationId: register
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, email, password, password_confirmation]
+              properties:
+                name:
+                  type: string
+                  maxLength: 255
+                email:
+                  type: string
+                  format: email
+                  maxLength: 255
+                password:
+                  type: string
+                  format: password
+                password_confirmation:
+                  type: string
+                  format: password
+                timezone:
+                  type: string
+                  example: America/New_York
+                distance_unit:
+                  type: string
+                  enum: [mi, km]
+                temperature_unit:
+                  type: string
+                  enum: [F, C]
+                currency:
+                  type: string
+                  maxLength: 3
+                  example: USD
+      responses:
+        "201":
+          description: User created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user:
+                    $ref: "#/components/schemas/User"
+                  token:
+                    type: string
+                    description: Sanctum plain-text token
+        "403":
+          description: Registration closed (user already exists)
+        "422":
+          $ref: "#/components/responses/ValidationError"
+
+  /v1/auth/login:
+    post:
+      tags: [Auth]
+      summary: Login and obtain an API token
+      security: []
+      operationId: login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+                  format: password
+                device_name:
+                  type: string
+                  description: Label for the token (default "api")
+      responses:
+        "200":
+          description: Authenticated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user:
+                    $ref: "#/components/schemas/User"
+                  token:
+                    type: string
+        "401":
+          description: Invalid credentials
+        "429":
+          description: Too many attempts (rate limited to 5 per minute)
+
+  /v1/auth/logout:
+    post:
+      tags: [Auth]
+      summary: Revoke the current access token
+      operationId: logout
+      responses:
+        "200":
+          description: Logged out
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+
+  /v1/auth/user:
+    get:
+      tags: [Auth]
+      summary: Get the authenticated user
+      operationId: currentUser
+      responses:
+        "200":
+          description: Current user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+
+  /v1/auth/tokens:
+    get:
+      tags: [Auth]
+      summary: List all API tokens for the authenticated user
+      operationId: listTokens
+      responses:
+        "200":
+          description: Token list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Token"
+
+  /v1/auth/tokens/{tokenId}:
+    delete:
+      tags: [Auth]
+      summary: Revoke a specific token
+      operationId: deleteToken
+      parameters:
+        - name: tokenId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Token revoked
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+
+  # ── Vehicles ────────────────────────────────────────────────────────
+  /v1/vehicles:
+    get:
+      tags: [Vehicles]
+      summary: List all vehicles
+      operationId: listVehicles
+      responses:
+        "200":
+          description: Vehicle list (includes latest state)
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Vehicle"
+    post:
+      tags: [Vehicles]
+      summary: Create a vehicle manually
+      operationId: createVehicle
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name:
+                  type: string
+                  maxLength: 255
+                vin:
+                  type: string
+                  maxLength: 17
+                tesla_vehicle_id:
+                  type: string
+                model:
+                  type: string
+                trim:
+                  type: string
+                color:
+                  type: string
+      responses:
+        "201":
+          description: Vehicle created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Vehicle"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+
+  /v1/vehicles/{vehicleId}:
+    get:
+      tags: [Vehicles]
+      summary: Get a vehicle
+      operationId: getVehicle
+      parameters:
+        - $ref: "#/components/parameters/vehicleId"
+      responses:
+        "200":
+          description: Vehicle with latest state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Vehicle"
+        "403":
+          description: Not your vehicle
+    put:
+      tags: [Vehicles]
+      summary: Update a vehicle
+      operationId: updateVehicle
+      parameters:
+        - $ref: "#/components/parameters/vehicleId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  maxLength: 255
+                is_active:
+                  type: boolean
+      responses:
+        "200":
+          description: Updated vehicle
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Vehicle"
+    delete:
+      tags: [Vehicles]
+      summary: Delete a vehicle
+      operationId: deleteVehicle
+      parameters:
+        - $ref: "#/components/parameters/vehicleId"
+      responses:
+        "200":
+          description: Vehicle deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+
+  /v1/vehicles/{vehicleId}/status:
+    get:
+      tags: [Vehicles]
+      summary: Get the latest vehicle state snapshot
+      operationId: vehicleStatus
+      parameters:
+        - $ref: "#/components/parameters/vehicleId"
+      responses:
+        "200":
+          description: Latest vehicle state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VehicleState"
+
+  /v1/vehicles/{vehicleId}/timeline:
+    get:
+      tags: [Vehicles]
+      summary: Get recent vehicle state history
+      operationId: vehicleTimeline
+      parameters:
+        - $ref: "#/components/parameters/vehicleId"
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 100
+            maximum: 1000
+      responses:
+        "200":
+          description: Array of vehicle states ordered by timestamp descending
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/VehicleState"
+
+  # ── Drives ──────────────────────────────────────────────────────────
+  /v1/drives:
+    get:
+      tags: [Drives]
+      summary: List drives (paginated)
+      operationId: listDrives
+      parameters:
+        - name: vehicle_id
+          in: query
+          schema:
+            type: integer
+        - name: tag
+          in: query
+          schema:
+            type: string
+        - name: from
+          in: query
+          description: ISO 8601 datetime lower bound on started_at
+          schema:
+            type: string
+            format: date-time
+        - name: to
+          in: query
+          description: ISO 8601 datetime upper bound on started_at
+          schema:
+            type: string
+            format: date-time
+        - $ref: "#/components/parameters/perPage"
+        - $ref: "#/components/parameters/page"
+      responses:
+        "200":
+          description: Paginated drive list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaginatedDrives"
+
+  /v1/drives/{driveId}:
+    get:
+      tags: [Drives]
+      summary: Get a single drive
+      operationId: getDrive
+      parameters:
+        - $ref: "#/components/parameters/driveId"
+      responses:
+        "200":
+          description: Drive with vehicle and place relations
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Drive"
+    put:
+      tags: [Drives]
+      summary: Update drive tag or notes
+      operationId: updateDrive
+      parameters:
+        - $ref: "#/components/parameters/driveId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                tag:
+                  type: string
+                  maxLength: 100
+                  nullable: true
+                notes:
+                  type: string
+                  nullable: true
+      responses:
+        "200":
+          description: Updated drive
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Drive"
+
+  /v1/drives/{driveId}/points:
+    get:
+      tags: [Drives]
+      summary: Get GPS/telemetry points for a drive
+      operationId: drivePoints
+      parameters:
+        - $ref: "#/components/parameters/driveId"
+      responses:
+        "200":
+          description: Ordered array of drive points
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/DrivePoint"
+
+  # ── Charges ─────────────────────────────────────────────────────────
+  /v1/charges:
+    get:
+      tags: [Charges]
+      summary: List charges (paginated)
+      operationId: listCharges
+      parameters:
+        - name: vehicle_id
+          in: query
+          schema:
+            type: integer
+        - name: charge_type
+          in: query
+          schema:
+            type: string
+            enum: [ac, dc, supercharger]
+        - $ref: "#/components/parameters/perPage"
+        - $ref: "#/components/parameters/page"
+      responses:
+        "200":
+          description: Paginated charge list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaginatedCharges"
+
+  /v1/charges/{chargeId}:
+    get:
+      tags: [Charges]
+      summary: Get a single charge
+      operationId: getCharge
+      parameters:
+        - $ref: "#/components/parameters/chargeId"
+      responses:
+        "200":
+          description: Charge with vehicle and place relations
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Charge"
+    put:
+      tags: [Charges]
+      summary: Update charge tag or notes
+      operationId: updateCharge
+      parameters:
+        - $ref: "#/components/parameters/chargeId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                tag:
+                  type: string
+                  maxLength: 100
+                  nullable: true
+                notes:
+                  type: string
+                  nullable: true
+      responses:
+        "200":
+          description: Updated charge
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Charge"
+
+  /v1/charges/{chargeId}/points:
+    get:
+      tags: [Charges]
+      summary: Get telemetry points for a charge session
+      operationId: chargePoints
+      parameters:
+        - $ref: "#/components/parameters/chargeId"
+      responses:
+        "200":
+          description: Ordered array of charge points
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ChargePoint"
+
+  # ── Idles ───────────────────────────────────────────────────────────
+  /v1/idles:
+    get:
+      tags: [Idles]
+      summary: List idle sessions (paginated)
+      operationId: listIdles
+      parameters:
+        - name: vehicle_id
+          in: query
+          schema:
+            type: integer
+        - $ref: "#/components/parameters/perPage"
+        - $ref: "#/components/parameters/page"
+      responses:
+        "200":
+          description: Paginated idle list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaginatedIdles"
+
+  /v1/idles/{idleId}:
+    get:
+      tags: [Idles]
+      summary: Get a single idle session
+      operationId: getIdle
+      parameters:
+        - $ref: "#/components/parameters/idleId"
+      responses:
+        "200":
+          description: Idle session with vehicle and place relations
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Idle"
+
+  # ── Places ──────────────────────────────────────────────────────────
+  /v1/places:
+    get:
+      tags: [Places]
+      summary: List all saved places
+      operationId: listPlaces
+      responses:
+        "200":
+          description: Place list with TOU rates
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Place"
+    post:
+      tags: [Places]
+      summary: Create a place
+      operationId: createPlace
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, latitude, longitude]
+              properties:
+                name:
+                  type: string
+                  maxLength: 255
+                latitude:
+                  type: number
+                  format: double
+                  minimum: -90
+                  maximum: 90
+                longitude:
+                  type: number
+                  format: double
+                  minimum: -180
+                  maximum: 180
+                radius_meters:
+                  type: integer
+                  minimum: 10
+                  maximum: 5000
+                electricity_cost_per_kwh:
+                  type: number
+                  nullable: true
+                auto_tag:
+                  type: string
+                  maxLength: 100
+                  nullable: true
+      responses:
+        "201":
+          description: Place created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Place"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+
+  /v1/places/{placeId}:
+    get:
+      tags: [Places]
+      summary: Get a place
+      operationId: getPlace
+      parameters:
+        - $ref: "#/components/parameters/placeId"
+      responses:
+        "200":
+          description: Place with TOU rates
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Place"
+    put:
+      tags: [Places]
+      summary: Update a place
+      operationId: updatePlace
+      parameters:
+        - $ref: "#/components/parameters/placeId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  maxLength: 255
+                latitude:
+                  type: number
+                  format: double
+                  minimum: -90
+                  maximum: 90
+                longitude:
+                  type: number
+                  format: double
+                  minimum: -180
+                  maximum: 180
+                radius_meters:
+                  type: integer
+                  minimum: 10
+                  maximum: 5000
+                electricity_cost_per_kwh:
+                  type: number
+                  nullable: true
+                auto_tag:
+                  type: string
+                  maxLength: 100
+                  nullable: true
+      responses:
+        "200":
+          description: Updated place
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Place"
+    delete:
+      tags: [Places]
+      summary: Delete a place
+      operationId: deletePlace
+      parameters:
+        - $ref: "#/components/parameters/placeId"
+      responses:
+        "200":
+          description: Place deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+
+  # ── Analytics ───────────────────────────────────────────────────────
+  /v1/analytics/efficiency:
+    get:
+      tags: [Analytics]
+      summary: Daily driving efficiency over time
+      operationId: analyticsEfficiency
+      parameters:
+        - name: days
+          in: query
+          schema:
+            type: integer
+            default: 90
+            maximum: 365
+      responses:
+        "200":
+          description: Daily efficiency data points
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    date:
+                      type: string
+                      format: date
+                    avg_efficiency:
+                      type: number
+                    avg_temp:
+                      type: number
+                      nullable: true
+                    drive_count:
+                      type: integer
+
+  /v1/analytics/energy:
+    get:
+      tags: [Analytics]
+      summary: Daily energy used and added
+      operationId: analyticsEnergy
+      parameters:
+        - name: days
+          in: query
+          schema:
+            type: integer
+            default: 30
+            maximum: 365
+      responses:
+        "200":
+          description: Energy used (drives) and energy added (charges) by day
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  energy_used:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        date:
+                          type: string
+                          format: date
+                        energy_used:
+                          type: number
+                  energy_added:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        date:
+                          type: string
+                          format: date
+                        energy_added:
+                          type: number
+
+  /v1/analytics/cost:
+    get:
+      tags: [Analytics]
+      summary: Charging cost breakdown by type and month
+      operationId: analyticsCost
+      parameters:
+        - name: days
+          in: query
+          schema:
+            type: integer
+            default: 90
+            maximum: 365
+      responses:
+        "200":
+          description: Cost breakdown
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  by_type:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        charge_type:
+                          type: string
+                          enum: [ac, dc, supercharger]
+                        total_cost:
+                          type: number
+                        total_energy:
+                          type: number
+                        charge_count:
+                          type: integer
+                  monthly:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        month:
+                          type: string
+                          example: "2025-03"
+                        total_cost:
+                          type: number
+
+  /v1/analytics/calendar:
+    get:
+      tags: [Analytics]
+      summary: Activity counts per day for a given month
+      operationId: analyticsCalendar
+      parameters:
+        - name: month
+          in: query
+          description: "Year-month in YYYY-MM format (defaults to current month)"
+          schema:
+            type: string
+            pattern: '^\d{4}-\d{2}$'
+            example: "2025-03"
+      responses:
+        "200":
+          description: Per-day event counts
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  month:
+                    type: string
+                    example: "2025-03"
+                  drives:
+                    type: object
+                    additionalProperties:
+                      type: integer
+                    description: "Map of date string to drive count"
+                  charges:
+                    type: object
+                    additionalProperties:
+                      type: integer
+                  idles:
+                    type: object
+                    additionalProperties:
+                      type: integer
+
+  # ── Dashboard ───────────────────────────────────────────────────────
+  /v1/dashboard:
+    get:
+      tags: [Analytics]
+      summary: Dashboard summary (30-day stats, recent activity)
+      operationId: dashboard
+      responses:
+        "200":
+          description: Dashboard data
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  vehicles:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Vehicle"
+                  recent_drives:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Drive"
+                  recent_charges:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Charge"
+                  stats:
+                    type: object
+                    properties:
+                      total_drives_30d:
+                        type: integer
+                      total_distance_30d:
+                        type: number
+                      total_energy_used_30d:
+                        type: number
+                      total_energy_added_30d:
+                        type: number
+                      total_charge_cost_30d:
+                        type: number
+
+  # ── Battery & Firmware ──────────────────────────────────────────────
+  /v1/vehicles/{vehicleId}/battery-health:
+    get:
+      tags: [Battery & Firmware]
+      summary: Battery degradation history
+      operationId: batteryHealth
+      parameters:
+        - $ref: "#/components/parameters/vehicleId"
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 365
+            maximum: 1000
+      responses:
+        "200":
+          description: Battery health records ordered by date descending
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/BatteryHealth"
+
+  /v1/vehicles/{vehicleId}/firmware-history:
+    get:
+      tags: [Battery & Firmware]
+      summary: Firmware version change history
+      operationId: firmwareHistory
+      parameters:
+        - $ref: "#/components/parameters/vehicleId"
+      responses:
+        "200":
+          description: Firmware history ordered by detection date descending
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/FirmwareHistory"
+
+  # ── Export ──────────────────────────────────────────────────────────
+  /v1/export/drives:
+    get:
+      tags: [Export]
+      summary: Export drives as CSV
+      operationId: exportDrives
+      parameters:
+        - name: from
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: to
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: tag
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: CSV file download
+          content:
+            text/csv:
+              schema:
+                type: string
+                format: binary
+          headers:
+            Content-Disposition:
+              schema:
+                type: string
+                example: 'attachment; filename="teslog-drives.csv"'
+
+  /v1/export/charges:
+    get:
+      tags: [Export]
+      summary: Export charges as CSV
+      operationId: exportCharges
+      parameters:
+        - name: from
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: to
+          in: query
+          schema:
+            type: string
+            format: date-time
+      responses:
+        "200":
+          description: CSV file download
+          content:
+            text/csv:
+              schema:
+                type: string
+                format: binary
+          headers:
+            Content-Disposition:
+              schema:
+                type: string
+                example: 'attachment; filename="teslog-charges.csv"'
+
+  # ── Commands ────────────────────────────────────────────────────────
+  /v1/vehicles/{vehicleId}/commands/{command}:
+    post:
+      tags: [Commands]
+      summary: Execute a vehicle command
+      description: >
+        Send a command to the vehicle via the Tesla API. Rate limited.
+        Allowed commands: lock, unlock, honk_horn, flash_lights, climate_on,
+        climate_off, set_temps, charge_start, charge_stop, charge_port_open,
+        charge_port_close, set_charge_limit, sentry_on, sentry_off,
+        vent_windows, close_windows.
+      operationId: executeCommand
+      parameters:
+        - $ref: "#/components/parameters/vehicleId"
+        - name: command
+          in: path
+          required: true
+          schema:
+            type: string
+            enum:
+              - lock
+              - unlock
+              - honk_horn
+              - flash_lights
+              - climate_on
+              - climate_off
+              - set_temps
+              - charge_start
+              - charge_stop
+              - charge_port_open
+              - charge_port_close
+              - set_charge_limit
+              - sentry_on
+              - sentry_off
+              - vent_windows
+              - close_windows
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                params:
+                  type: object
+                  description: Command-specific parameters (e.g. temperatures, charge limit)
+                  additionalProperties: true
+      responses:
+        "200":
+          description: Command result from Tesla API
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "400":
+          description: Unknown command
+        "429":
+          description: Rate limited
+
+  # ── Tesla Setup ─────────────────────────────────────────────────────
+  /v1/tesla/vehicles:
+    get:
+      tags: [Tesla Setup]
+      summary: List vehicles from the user's Tesla account
+      description: Requires a completed Tesla OAuth flow with tokens stored in session.
+      operationId: teslaListVehicles
+      responses:
+        "200":
+          description: Vehicles from Tesla account
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: integer
+                        vin:
+                          type: string
+                        display_name:
+                          type: string
+                      additionalProperties: true
+        "400":
+          description: No Tesla tokens in session
+        "502":
+          description: Tesla API error
+
+  /v1/tesla/link-vehicle:
+    post:
+      tags: [Tesla Setup]
+      summary: Link a Tesla vehicle to the user's Teslog account
+      operationId: teslaLinkVehicle
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tesla_vehicle_id]
+              properties:
+                tesla_vehicle_id:
+                  type: integer
+      responses:
+        "201":
+          description: Vehicle linked
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: integer
+                      tesla_vehicle_id:
+                        type: string
+                      vin:
+                        type: string
+                      name:
+                        type: string
+                      is_active:
+                        type: boolean
+        "400":
+          description: No Tesla tokens in session
+        "404":
+          description: Vehicle not found in Tesla account
+        "502":
+          description: Tesla API error
+
+  /v1/vehicles/{vehicleId}/tesla/refresh-tokens:
+    post:
+      tags: [Tesla Setup]
+      summary: Refresh Tesla OAuth tokens for a vehicle
+      operationId: teslaRefreshTokens
+      parameters:
+        - $ref: "#/components/parameters/vehicleId"
+      responses:
+        "200":
+          description: Tokens refreshed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  data:
+                    type: object
+                    properties:
+                      expires_at:
+                        type: string
+                        format: date-time
+        "400":
+          description: No refresh token available
+        "403":
+          description: Not your vehicle
+        "502":
+          description: Tesla API error
+
+  /v1/vehicles/{vehicleId}/tesla/unlink:
+    delete:
+      tags: [Tesla Setup]
+      summary: Unlink a Tesla vehicle and disable telemetry
+      operationId: teslaUnlinkVehicle
+      parameters:
+        - $ref: "#/components/parameters/vehicleId"
+      responses:
+        "200":
+          description: Vehicle unlinked
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+        "403":
+          description: Not your vehicle
+
+  # ── Telemetry (Internal) ───────────────────────────────────────────
+  /telemetry/ingest:
+    post:
+      tags: [Telemetry]
+      summary: Ingest telemetry data from fleet-telemetry (internal)
+      description: >
+        Internal endpoint authenticated via telemetry-auth middleware
+        (shared secret). Not intended for external API consumers.
+      security:
+        - telemetryAuth: []
+      operationId: telemetryIngest
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                data:
+                  type: array
+                  items:
+                    type: object
+                    required: [vin]
+                    properties:
+                      vin:
+                        type: string
+                      created_at:
+                        type: string
+                        format: date-time
+                      data:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            key:
+                              type: string
+                            value:
+                              oneOf:
+                                - type: number
+                                - type: string
+      responses:
+        "200":
+          description: Data accepted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  received:
+                    type: integer
+        "400":
+          description: No data provided
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: Sanctum API token obtained from /v1/auth/login or /v1/auth/register
+    telemetryAuth:
+      type: apiKey
+      in: header
+      name: Authorization
+      description: Shared secret for fleet-telemetry ingestion
+
+  parameters:
+    vehicleId:
+      name: vehicleId
+      in: path
+      required: true
+      schema:
+        type: integer
+    driveId:
+      name: driveId
+      in: path
+      required: true
+      schema:
+        type: integer
+    chargeId:
+      name: chargeId
+      in: path
+      required: true
+      schema:
+        type: integer
+    idleId:
+      name: idleId
+      in: path
+      required: true
+      schema:
+        type: integer
+    placeId:
+      name: placeId
+      in: path
+      required: true
+      schema:
+        type: integer
+    perPage:
+      name: per_page
+      in: query
+      schema:
+        type: integer
+        default: 25
+        maximum: 100
+    page:
+      name: page
+      in: query
+      schema:
+        type: integer
+        default: 1
+
+  responses:
+    ValidationError:
+      description: Validation error
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              message:
+                type: string
+              errors:
+                type: object
+                additionalProperties:
+                  type: array
+                  items:
+                    type: string
+
+  schemas:
+    MessageResponse:
+      type: object
+      properties:
+        message:
+          type: string
+
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+        timezone:
+          type: string
+        distance_unit:
+          type: string
+          enum: [mi, km]
+        temperature_unit:
+          type: string
+          enum: [F, C]
+        elevation_unit:
+          type: string
+          enum: [ft, m]
+        currency:
+          type: string
+        theme:
+          type: string
+          nullable: true
+        debug_mode:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    Token:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        abilities:
+          type: array
+          items:
+            type: string
+        last_used_at:
+          type: string
+          format: date-time
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+
+    Vehicle:
+      type: object
+      properties:
+        id:
+          type: integer
+        user_id:
+          type: integer
+        tesla_vehicle_id:
+          type: string
+          nullable: true
+        vin:
+          type: string
+          nullable: true
+        name:
+          type: string
+        model:
+          type: string
+          nullable: true
+        trim:
+          type: string
+          nullable: true
+        battery_capacity_kwh:
+          type: number
+          nullable: true
+        color:
+          type: string
+          nullable: true
+        firmware_version:
+          type: string
+          nullable: true
+        is_active:
+          type: boolean
+        show_on_dashboard:
+          type: boolean
+        tesla_token_expires_at:
+          type: string
+          format: date-time
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        latest_state:
+          $ref: "#/components/schemas/VehicleState"
+
+    VehicleState:
+      type: object
+      properties:
+        id:
+          type: integer
+        vehicle_id:
+          type: integer
+        timestamp:
+          type: string
+          format: date-time
+        state:
+          type: string
+          description: "Vehicle state (e.g. driving, charging, idle, asleep)"
+        latitude:
+          type: number
+          format: double
+          nullable: true
+        longitude:
+          type: number
+          format: double
+          nullable: true
+        heading:
+          type: number
+          nullable: true
+        elevation:
+          type: number
+          nullable: true
+        speed:
+          type: number
+          nullable: true
+        power:
+          type: number
+          nullable: true
+        battery_level:
+          type: number
+          nullable: true
+        rated_range:
+          type: number
+          nullable: true
+        ideal_range:
+          type: number
+          nullable: true
+        odometer:
+          type: number
+          nullable: true
+        inside_temp:
+          type: number
+          nullable: true
+        outside_temp:
+          type: number
+          nullable: true
+        locked:
+          type: boolean
+          nullable: true
+        sentry_mode:
+          type: boolean
+          nullable: true
+        climate_on:
+          type: boolean
+          nullable: true
+        gear:
+          type: string
+          nullable: true
+        charger_power:
+          type: number
+          nullable: true
+        charger_voltage:
+          type: number
+          nullable: true
+        charger_current:
+          type: number
+          nullable: true
+        charge_limit_soc:
+          type: number
+          nullable: true
+        charge_state:
+          type: string
+          nullable: true
+        energy_remaining:
+          type: number
+          nullable: true
+        software_version:
+          type: string
+          nullable: true
+
+    Drive:
+      type: object
+      properties:
+        id:
+          type: integer
+        vehicle_id:
+          type: integer
+        started_at:
+          type: string
+          format: date-time
+        ended_at:
+          type: string
+          format: date-time
+          nullable: true
+        distance:
+          type: number
+          nullable: true
+          description: Distance in miles
+        energy_used_kwh:
+          type: number
+          nullable: true
+        efficiency:
+          type: number
+          nullable: true
+          description: Wh/mi
+        start_latitude:
+          type: number
+          format: double
+          nullable: true
+        start_longitude:
+          type: number
+          format: double
+          nullable: true
+        end_latitude:
+          type: number
+          format: double
+          nullable: true
+        end_longitude:
+          type: number
+          format: double
+          nullable: true
+        start_address:
+          type: string
+          nullable: true
+        end_address:
+          type: string
+          nullable: true
+        start_place_id:
+          type: integer
+          nullable: true
+        end_place_id:
+          type: integer
+          nullable: true
+        start_battery_level:
+          type: number
+          nullable: true
+        end_battery_level:
+          type: number
+          nullable: true
+        start_rated_range:
+          type: number
+          nullable: true
+        end_rated_range:
+          type: number
+          nullable: true
+        start_odometer:
+          type: number
+          nullable: true
+        end_odometer:
+          type: number
+          nullable: true
+        max_speed:
+          type: number
+          nullable: true
+        avg_speed:
+          type: number
+          nullable: true
+        outside_temp_avg:
+          type: number
+          nullable: true
+        tag:
+          type: string
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+        weather:
+          type: object
+          nullable: true
+          additionalProperties: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        vehicle:
+          $ref: "#/components/schemas/Vehicle"
+        start_place:
+          $ref: "#/components/schemas/Place"
+        end_place:
+          $ref: "#/components/schemas/Place"
+
+    DrivePoint:
+      type: object
+      properties:
+        id:
+          type: integer
+        drive_id:
+          type: integer
+        timestamp:
+          type: string
+          format: date-time
+        latitude:
+          type: number
+          format: double
+          nullable: true
+        longitude:
+          type: number
+          format: double
+          nullable: true
+        altitude:
+          type: number
+          nullable: true
+        speed:
+          type: number
+          nullable: true
+        power:
+          type: number
+          nullable: true
+        battery_level:
+          type: number
+          nullable: true
+        heading:
+          type: number
+          nullable: true
+
+    Charge:
+      type: object
+      properties:
+        id:
+          type: integer
+        vehicle_id:
+          type: integer
+        started_at:
+          type: string
+          format: date-time
+        ended_at:
+          type: string
+          format: date-time
+          nullable: true
+        charge_type:
+          type: string
+          enum: [ac, dc, supercharger]
+          nullable: true
+        energy_added_kwh:
+          type: number
+          nullable: true
+        energy_used_kwh:
+          type: number
+          nullable: true
+        charging_efficiency:
+          type: number
+          nullable: true
+        cost:
+          type: number
+          nullable: true
+        start_battery_level:
+          type: number
+          nullable: true
+        end_battery_level:
+          type: number
+          nullable: true
+        start_rated_range:
+          type: number
+          nullable: true
+        end_rated_range:
+          type: number
+          nullable: true
+        max_charger_power:
+          type: number
+          nullable: true
+        avg_voltage:
+          type: number
+          nullable: true
+        max_voltage:
+          type: number
+          nullable: true
+        avg_current:
+          type: number
+          nullable: true
+        max_current:
+          type: number
+          nullable: true
+        odometer:
+          type: number
+          nullable: true
+        latitude:
+          type: number
+          format: double
+          nullable: true
+        longitude:
+          type: number
+          format: double
+          nullable: true
+        address:
+          type: string
+          nullable: true
+        place_id:
+          type: integer
+          nullable: true
+        tag:
+          type: string
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        vehicle:
+          $ref: "#/components/schemas/Vehicle"
+        place:
+          $ref: "#/components/schemas/Place"
+
+    ChargePoint:
+      type: object
+      properties:
+        id:
+          type: integer
+        charge_id:
+          type: integer
+        timestamp:
+          type: string
+          format: date-time
+        battery_level:
+          type: number
+          nullable: true
+        charger_power_kw:
+          type: number
+          nullable: true
+        voltage:
+          type: number
+          nullable: true
+        current:
+          type: number
+          nullable: true
+        rated_range:
+          type: number
+          nullable: true
+
+    Idle:
+      type: object
+      properties:
+        id:
+          type: integer
+        vehicle_id:
+          type: integer
+        started_at:
+          type: string
+          format: date-time
+        ended_at:
+          type: string
+          format: date-time
+          nullable: true
+        latitude:
+          type: number
+          format: double
+          nullable: true
+        longitude:
+          type: number
+          format: double
+          nullable: true
+        address:
+          type: string
+          nullable: true
+        place_id:
+          type: integer
+          nullable: true
+        start_battery_level:
+          type: number
+          nullable: true
+        end_battery_level:
+          type: number
+          nullable: true
+        vampire_drain_rate:
+          type: number
+          nullable: true
+          description: Battery drain rate in %/hr
+        sentry_mode_active:
+          type: boolean
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        vehicle:
+          $ref: "#/components/schemas/Vehicle"
+        place:
+          $ref: "#/components/schemas/Place"
+
+    Place:
+      type: object
+      properties:
+        id:
+          type: integer
+        user_id:
+          type: integer
+        name:
+          type: string
+        latitude:
+          type: number
+          format: double
+        longitude:
+          type: number
+          format: double
+        radius_meters:
+          type: integer
+        electricity_cost_per_kwh:
+          type: number
+          nullable: true
+        auto_tag:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        tou_rates:
+          type: array
+          items:
+            $ref: "#/components/schemas/PlaceTouRate"
+
+    PlaceTouRate:
+      type: object
+      properties:
+        id:
+          type: integer
+        place_id:
+          type: integer
+        day_of_week:
+          type: integer
+          description: "0 = Sunday, 6 = Saturday"
+        start_time:
+          type: string
+          example: "22:00"
+        end_time:
+          type: string
+          example: "06:00"
+        rate_per_kwh:
+          type: number
+
+    BatteryHealth:
+      type: object
+      properties:
+        id:
+          type: integer
+        vehicle_id:
+          type: integer
+        recorded_at:
+          type: string
+          format: date
+        battery_level:
+          type: number
+          nullable: true
+        rated_range:
+          type: number
+          nullable: true
+        ideal_range:
+          type: number
+          nullable: true
+        degradation_pct:
+          type: number
+          nullable: true
+          description: Estimated battery degradation percentage
+
+    FirmwareHistory:
+      type: object
+      properties:
+        id:
+          type: integer
+        vehicle_id:
+          type: integer
+        version:
+          type: string
+        detected_at:
+          type: string
+          format: date-time
+        previous_version:
+          type: string
+          nullable: true
+
+    # ── Pagination wrappers (Laravel default shape) ───────────────────
+    PaginatedDrives:
+      type: object
+      properties:
+        current_page:
+          type: integer
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Drive"
+        first_page_url:
+          type: string
+        from:
+          type: integer
+          nullable: true
+        last_page:
+          type: integer
+        last_page_url:
+          type: string
+        links:
+          type: array
+          items:
+            type: object
+            properties:
+              url:
+                type: string
+                nullable: true
+              label:
+                type: string
+              active:
+                type: boolean
+        next_page_url:
+          type: string
+          nullable: true
+        path:
+          type: string
+        per_page:
+          type: integer
+        prev_page_url:
+          type: string
+          nullable: true
+        to:
+          type: integer
+          nullable: true
+        total:
+          type: integer
+
+    PaginatedCharges:
+      type: object
+      properties:
+        current_page:
+          type: integer
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Charge"
+        first_page_url:
+          type: string
+        from:
+          type: integer
+          nullable: true
+        last_page:
+          type: integer
+        last_page_url:
+          type: string
+        links:
+          type: array
+          items:
+            type: object
+            properties:
+              url:
+                type: string
+                nullable: true
+              label:
+                type: string
+              active:
+                type: boolean
+        next_page_url:
+          type: string
+          nullable: true
+        path:
+          type: string
+        per_page:
+          type: integer
+        prev_page_url:
+          type: string
+          nullable: true
+        to:
+          type: integer
+          nullable: true
+        total:
+          type: integer
+
+    PaginatedIdles:
+      type: object
+      properties:
+        current_page:
+          type: integer
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Idle"
+        first_page_url:
+          type: string
+        from:
+          type: integer
+          nullable: true
+        last_page:
+          type: integer
+        last_page_url:
+          type: string
+        links:
+          type: array
+          items:
+            type: object
+            properties:
+              url:
+                type: string
+                nullable: true
+              label:
+                type: string
+              active:
+                type: boolean
+        next_page_url:
+          type: string
+          nullable: true
+        path:
+          type: string
+        per_page:
+          type: integer
+        prev_page_url:
+          type: string
+          nullable: true
+        to:
+          type: integer
+          nullable: true
+        total:
+          type: integer

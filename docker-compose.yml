@@ -1,0 +1,82 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: docker/app/Dockerfile
+    ports:
+      - "${APP_PORT:-8080}:80"
+    volumes:
+      - app-storage:/var/www/html/storage/app
+      - db-data:/data
+      - fleet-telemetry-config:/var/www/html/docker/fleet-telemetry
+      - proxy-keys:/var/www/html/docker/tesla-http-proxy
+    env_file:
+      - .env
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/up"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+    restart: unless-stopped
+
+  mosquitto:
+    build:
+      context: docker/mosquitto
+    restart: unless-stopped
+
+  fleet-telemetry:
+    build:
+      context: .
+      dockerfile: docker/fleet-telemetry/Dockerfile
+    ports:
+      - "${FLEET_TELEMETRY_PORT:-4443}:4443"
+    volumes:
+      - fleet-telemetry-config:/etc/fleet-telemetry:ro
+    depends_on:
+      - mosquitto
+    restart: unless-stopped
+
+  tesla-http-proxy:
+    image: tesla/vehicle-command:latest
+    command:
+      - -tls-key
+      - /config/tls-key.pem
+      - -cert
+      - /config/tls-cert.pem
+      - -key-file
+      - /config/fleet-key.pem
+      - -port
+      - "4430"
+      - -host
+      - "0.0.0.0"
+    environment:
+      - TESLA_CLIENT_ID=${TESLA_CLIENT_ID}
+      - TESLA_CLIENT_SECRET=${TESLA_CLIENT_SECRET}
+    volumes:
+      - proxy-keys:/config:ro
+    depends_on:
+      app:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  app-storage:
+  db-data:
+  redis-data:
+  fleet-telemetry-config:
+  proxy-keys:

@@ -1,0 +1,15 @@
+.git
+.env
+.env.local
+node_modules
+vendor
+storage/logs/*
+storage/framework/cache/*
+storage/framework/sessions/*
+storage/framework/views/*
+docker/fleet-telemetry/certs
+docker/fleet-telemetry/config.json
+docker/tesla-http-proxy/tls-key.pem
+tests
+.phpunit.result.cache
+.claude

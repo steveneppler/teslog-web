@@ -1,0 +1,39 @@
+{
+  "host": "0.0.0.0",
+  "port": 4443,
+  "log_level": "info",
+  "json_log_enable": true,
+  "namespace": "teslog",
+  "reliable_ack": true,
+  "transmit_decoded_records": true,
+  "reliable_ack_sources": {
+    "V": "mqtt"
+  },
+  "monitoring": {
+    "prometheus_metrics_port": 9090,
+    "profiler_port": 0,
+    "profiling_path": ""
+  },
+  "rate_limit": {
+    "enabled": true,
+    "message_limit": 1000,
+    "message_interval_time": 30
+  },
+  "records": {
+    "alerts": ["logger"],
+    "errors": ["logger"],
+    "V": ["mqtt"]
+  },
+  "tls": {
+    "server_cert": "/etc/fleet-telemetry/certs/server.crt",
+    "server_key": "/etc/fleet-telemetry/certs/server.key",
+    "ca_file": "/etc/fleet-telemetry/certs/ca.crt"
+  },
+  "mqtt": {
+    "broker": "mosquitto:1883",
+    "client_id": "fleet-telemetry",
+    "topic_base": "teslog",
+    "qos": 1,
+    "publish_timeout_ms": 5000
+  }
+}
