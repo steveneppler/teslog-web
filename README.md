@@ -2,71 +2,15 @@
 
 A self-hosted Tesla vehicle data logging and analytics platform. Teslog captures real-time telemetry from your Tesla via Fleet Telemetry streaming, logs drives, charges, and idle sessions, and presents everything in a clean web dashboard.
 
-## Features
+## Getting Started
 
-- **Real-time dashboard** — Live vehicle status with battery, range, temperature, lock state, and sentry mode via WebSocket
-- **Drive logging** — Automatic trip detection with route maps, speed/elevation charts, efficiency stats, and GPS breadcrumbs
-- **Charge logging** — Charge curve visualization, energy tracking, cost calculation with time-of-use rates
-- **Idle/sleep tracking** — Vampire drain monitoring and sentry mode usage
-- **Places** — Named locations with geofence matching, auto-tagging drives and charges
-- **Vehicle commands** — Lock/unlock, HVAC, charge control, sentry mode, and more via the Tesla Vehicle Command Proxy
-- **Week-based drive history** — Browse drives by week with daily groupings, summary stats, and route maps
-- **TeslaFi import** — Migrate historical data from TeslaFi CSV exports
-- **Temperature & unit preferences** — Fahrenheit/Celsius, miles/kilometers per user
-- **Theme switching** — Auto (follows OS), Light, and Dark modes
-- **Mobile-friendly** — Responsive layout with slide-in sidebar navigation
-- **Companion iOS app** — Native SwiftUI app for on-the-go monitoring ([separate repo](../teslog-app))
-
-## Tech Stack
-
-- **Backend:** Laravel 12, PHP 8.2+
-- **Frontend:** Livewire 4, Blade, Tailwind CSS
-- **Charts:** Chart.js
-- **Maps:** Leaflet.js with CartoDB tiles (theme-aware)
-- **Real-time:** Laravel Reverb (WebSocket)
-- **Database:** SQLite (default), MySQL/PostgreSQL optional
-- **Queue/Cache:** Redis
-- **Telemetry:** Tesla Fleet Telemetry (Go binary)
-- **Auth:** Laravel Sanctum
-
-## Architecture
-
-```
-Tesla Vehicle ──(mTLS WebSocket)──► Fleet Telemetry container
-                                        │
-                                   MQTT (reliable ack)
-                                        │
-                                        ▼
-                                   Mosquitto broker
-                                        │
-                                        ▼
-                                   Laravel app (MQTT subscriber) ──► Horizon (queue) ──► Database
-                                     │    │                                             │
-                              Livewire    REST API + WebSocket                          │
-                            web dashboard        │                                      │
-                                          iOS/macOS companion app ◄─────────────────────┘
-```
-
-Five containers:
-
-| Container | Role |
-|-----------|------|
-| **app** | PHP-FPM, Nginx, Horizon (queue), scheduler, Reverb, MQTT subscriber |
-| **fleet-telemetry** | Tesla's Go binary, receives vehicle telemetry via mTLS, publishes to MQTT |
-| **mosquitto** | Eclipse Mosquitto MQTT broker for reliable telemetry delivery |
-| **tesla-http-proxy** | Tesla Vehicle Command Proxy for signed vehicle commands |
-| **redis** | Queue broker and cache |
-
-Fleet Telemetry publishes decoded vehicle data to the Mosquitto MQTT broker with reliable acks enabled. The vehicle only marks a message as delivered after fleet-telemetry confirms the MQTT publish succeeded, providing at-least-once delivery with a ~5000 message buffer on the vehicle side.
-
-## Prerequisites
+You'll need:
 
 - Docker and Docker Compose
-- A domain name with DNS pointed to your server (required for Tesla OAuth and Fleet Telemetry)
-- TLS certificates for your domain (e.g., via Let's Encrypt)
-- A [Tesla Developer Account](https://developer.tesla.com/) with a registered application (see below)
+- A domain name with DNS pointed to your server
+- A [Tesla Developer Account](https://developer.tesla.com/) with a registered application
 
-### Tesla Developer App Setup
+### 1. Tesla Developer App
 
 1. Go to [developer.tesla.com](https://developer.tesla.com/) and sign in
 2. Create a new application with these settings:
@@ -78,9 +22,7 @@ Fleet Telemetry publishes decoded vehicle data to the Mosquitto MQTT broker with
 
 > **Warning:** If you run multiple Teslog instances (e.g., production + demo), each must use its own Tesla Developer App with a separate Client ID. Partner registration is per Client ID — running `--register-partner` from a second instance will overwrite the first, breaking fleet telemetry on the original instance.
 
-## Getting Started
-
-### 1. Clone and configure
+### 2. Clone and configure
 
 ```bash
 git clone https://github.com/steveneppler/teslog-web.git
@@ -120,7 +62,7 @@ VITE_REVERB_SCHEME=https
 
 > **Note:** `TESLA_REDIRECT_URI` defaults to `${APP_URL}/auth/tesla/callback` — no need to set it explicitly unless your callback URL differs from your `APP_URL`.
 
-### 2. Start the containers
+### 3. Start the containers
 
 ```bash
 docker compose up -d
@@ -135,34 +77,13 @@ On first start, the app entrypoint automatically:
 
 All generated keys and certificates persist in Docker volumes across restarts.
 
-### 3. Create your account
-
-Visit your Teslog URL and register. Registration is automatically locked after the first user is created.
-
-### 4. Connect your Tesla
-
-1. Go to **Settings** in the web dashboard
-2. Click **Connect Tesla Account**
-3. Sign in with your Tesla account and authorize Teslog
-4. Select your vehicles — Teslog will automatically register as a Fleet API partner and configure telemetry streaming
-
-### 5. Pair your public key with your vehicle
-
-Tesla requires your app's public key to be paired with each vehicle. The setup wizard shows this link after connecting, but you can also do it manually:
-
-1. Verify your public key is accessible at `https://yourdomain.com/.well-known/appspecific/com.tesla.3p.public-key.pem`
-2. On your phone (near the vehicle), open: `https://tesla.com/_ak/yourdomain.com`
-3. The Tesla app will prompt you to approve the key — tap **Approve** on the vehicle's touchscreen
-
-> **Note:** If you see a `missing_key` error during setup, complete this step first, then re-connect your Tesla account in Settings to retry telemetry configuration.
-
-## Reverse Proxy
+### 4. Set up a reverse proxy
 
 A reverse proxy with TLS termination is required in front of the app container. WebSocket connections to `/app` are proxied internally by the app container's Nginx to Reverb — no separate port or location block needed.
 
 Fleet Telemetry listens on port 4443 with its own mTLS certificates. It does **not** go through the reverse proxy — just ensure port 4443 is open in your firewall.
 
-### Caddy (recommended)
+#### Caddy (recommended)
 
 [Caddy](https://caddyserver.com/) is the simplest option — it handles TLS certificates automatically via Let's Encrypt.
 
@@ -188,7 +109,7 @@ systemctl restart caddy
 
 > **Note:** Ports 80 and 443 must be open for Caddy's ACME challenge and HTTPS. Port 4443 must be open for Fleet Telemetry.
 
-### Nginx (alternative)
+#### Nginx (alternative)
 
 ```nginx
 server {
@@ -211,6 +132,84 @@ server {
 }
 ```
 
+### 5. Create your account
+
+Visit your Teslog URL and register. Registration is automatically locked after the first user is created.
+
+### 6. Connect your Tesla
+
+1. Go to **Settings** in the web dashboard
+2. Click **Connect Tesla Account**
+3. Sign in with your Tesla account and authorize Teslog
+4. Select your vehicles — Teslog will automatically register as a Fleet API partner and configure telemetry streaming
+
+### 7. Pair your public key with your vehicle
+
+Tesla requires your app's public key to be paired with each vehicle. The setup wizard shows this link after connecting, but you can also do it manually:
+
+1. Verify your public key is accessible at `https://yourdomain.com/.well-known/appspecific/com.tesla.3p.public-key.pem`
+2. On your phone (near the vehicle), open: `https://tesla.com/_ak/yourdomain.com`
+3. The Tesla app will prompt you to approve the key — tap **Approve** on the vehicle's touchscreen
+
+> **Note:** If you see a `missing_key` error during setup, complete this step first, then re-connect your Tesla account in Settings to retry telemetry configuration.
+
+## Features
+
+- **Real-time dashboard** — Live vehicle status with battery, range, temperature, lock state, and sentry mode via WebSocket
+- **Drive logging** — Automatic trip detection with route maps, speed/elevation charts, efficiency stats, and GPS breadcrumbs
+- **Charge logging** — Charge curve visualization, energy tracking, cost calculation with time-of-use rates
+- **Idle/sleep tracking** — Vampire drain monitoring and sentry mode usage
+- **Places** — Named locations with geofence matching, auto-tagging drives and charges
+- **Vehicle commands** — Lock/unlock, HVAC, charge control, sentry mode, and more via the Tesla Vehicle Command Proxy
+- **Week-based drive history** — Browse drives by week with daily groupings, summary stats, and route maps
+- **TeslaFi import** — Migrate historical data from TeslaFi CSV exports
+- **Temperature & unit preferences** — Fahrenheit/Celsius, miles/kilometers per user
+- **Theme switching** — Auto (follows OS), Light, and Dark modes
+- **Mobile-friendly** — Responsive layout with slide-in sidebar navigation
+- **Companion iOS app** — Native SwiftUI app for on-the-go monitoring ([separate repo](../teslog-app))
+
+## Architecture
+
+```
+Tesla Vehicle ──(mTLS WebSocket)──► Fleet Telemetry container
+                                        │
+                                   MQTT (reliable ack)
+                                        │
+                                        ▼
+                                   Mosquitto broker
+                                        │
+                                        ▼
+                                   Laravel app (MQTT subscriber) ──► Horizon (queue) ──► Database
+                                     │    │                                             │
+                              Livewire    REST API + WebSocket                          │
+                            web dashboard        │                                      │
+                                          iOS/macOS companion app ◄─────────────────────┘
+```
+
+Five containers:
+
+| Container | Role |
+|-----------|------|
+| **app** | PHP-FPM, Nginx, Horizon (queue), scheduler, Reverb, MQTT subscriber |
+| **fleet-telemetry** | Tesla's Go binary, receives vehicle telemetry via mTLS, publishes to MQTT |
+| **mosquitto** | Eclipse Mosquitto MQTT broker for reliable telemetry delivery |
+| **tesla-http-proxy** | Tesla Vehicle Command Proxy for signed vehicle commands |
+| **redis** | Queue broker and cache |
+
+Fleet Telemetry publishes decoded vehicle data to the Mosquitto MQTT broker with reliable acks enabled. The vehicle only marks a message as delivered after fleet-telemetry confirms the MQTT publish succeeded, providing at-least-once delivery with a ~5000 message buffer on the vehicle side.
+
+## Tech Stack
+
+- **Backend:** Laravel 12, PHP 8.2+
+- **Frontend:** Livewire 4, Blade, Tailwind CSS
+- **Charts:** Chart.js
+- **Maps:** Leaflet.js with CartoDB tiles (theme-aware)
+- **Real-time:** Laravel Reverb (WebSocket)
+- **Database:** SQLite (default), MySQL/PostgreSQL optional
+- **Queue/Cache:** Redis
+- **Telemetry:** Tesla Fleet Telemetry (Go binary)
+- **Auth:** Laravel Sanctum
+
 ## Environment Variables
 
 ### Required
@@ -218,7 +217,7 @@ server {
 | Variable | Description |
 |----------|-------------|
 | `APP_URL` | Public URL of your Teslog instance |
-| `APP_KEY` | Laravel encryption key (see step 1 for generation) |
+| `APP_KEY` | Laravel encryption key (see step 2 for generation) |
 | `TESLA_CLIENT_ID` | Tesla Developer app client ID |
 | `TESLA_CLIENT_SECRET` | Tesla Developer app client secret |
 | `TESLA_REDIRECT_URI` | OAuth callback URL (defaults to `{APP_URL}/auth/tesla/callback`) |
