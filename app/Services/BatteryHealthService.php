@@ -58,6 +58,9 @@ class BatteryHealthService
             return null;
         }
 
+        if ($currentLevel <= 0) {
+            return null;
+        }
         $currentFullRange = $currentRange / $currentLevel * 100;
 
         return round((1 - $currentFullRange / $originalFullRange) * 100, 1);
