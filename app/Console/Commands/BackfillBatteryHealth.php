@@ -5,6 +5,7 @@ namespace App\Console\Commands;
 use App\Models\BatteryHealth;
 use App\Models\Vehicle;
 use App\Models\VehicleState;
+use App\Services\BatteryHealthService;
 use Illuminate\Console\Command;
 use Illuminate\Support\Carbon;
 
@@ -14,7 +15,7 @@ class BackfillBatteryHealth extends Command
 
     protected $description = 'Backfill battery health records from historical VehicleState data';
 
-    public function handle(): int
+    public function handle(BatteryHealthService $service): int
     {
         $query = Vehicle::query();
 
@@ -34,17 +35,7 @@ class BackfillBatteryHealth extends Command
                 ->map(fn ($d) => $d->format('Y-m-d'))
                 ->flip();
 
-            // Find best-ever range at high SOC for degradation calculation
-            $bestState = VehicleState::where('vehicle_id', $vehicle->id)
-                ->whereNotNull('rated_range')
-                ->where('battery_level', '>=', 95)
-                ->where('rated_range', '>', 0)
-                ->orderByDesc('rated_range')
-                ->first();
-
-            $originalRange = $bestState
-                ? $bestState->rated_range / $bestState->battery_level * 100
-                : null;
+            $originalRange = $service->getOriginalFullRange($vehicle->id);
 
             // Process in daily chunks using raw SQL to find best reading per day
             $dailyBest = VehicleState::where('vehicle_id', $vehicle->id)
@@ -52,13 +43,13 @@ class BackfillBatteryHealth extends Command
                 ->whereNotNull('rated_range')
                 ->where('battery_level', '>=', 70)
                 ->where('rated_range', '>', 0)
-                ->selectRaw("DATE(timestamp) as day, MAX(battery_level) as max_soc")
+                ->selectRaw('DATE(timestamp) as day, MAX(battery_level) as max_soc')
                 ->groupByRaw('DATE(timestamp)')
                 ->orderBy('day')
                 ->get();
 
             if ($dailyBest->isEmpty()) {
-                $this->line("  No qualifying states found. Skipping.");
+                $this->line('  No qualifying states found. Skipping.');
 
                 continue;
             }
@@ -85,11 +76,7 @@ class BackfillBatteryHealth extends Command
                     continue;
                 }
 
-                $degradation = null;
-                if ($originalRange && $originalRange > 0) {
-                    $currentFullRange = $best->rated_range / $best->battery_level * 100;
-                    $degradation = round((1 - $currentFullRange / $originalRange) * 100, 1);
-                }
+                $degradation = $service->computeDegradation($originalRange, $best->rated_range, $best->battery_level);
 
                 BatteryHealth::create([
                     'vehicle_id' => $vehicle->id,
