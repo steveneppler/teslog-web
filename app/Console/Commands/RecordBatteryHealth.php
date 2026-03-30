@@ -30,11 +30,12 @@ class RecordBatteryHealth extends Command
                 continue;
             }
 
-            // Find best state: prefer 100% battery, then highest >= 90%
+            // Find best state: prefer 100% battery, then highest >= 70%
             $state = VehicleState::where('vehicle_id', $vehicle->id)
                 ->where('timestamp', '>=', $since)
                 ->whereNotNull('battery_level')
                 ->whereNotNull('rated_range')
+                ->where('rated_range', '>', 0)
                 ->where('battery_level', 100)
                 ->orderByDesc('timestamp')
                 ->first();
@@ -44,14 +45,15 @@ class RecordBatteryHealth extends Command
                     ->where('timestamp', '>=', $since)
                     ->whereNotNull('battery_level')
                     ->whereNotNull('rated_range')
-                    ->where('battery_level', '>=', 90)
+                    ->where('rated_range', '>', 0)
+                    ->where('battery_level', '>=', 70)
                     ->orderByDesc('battery_level')
                     ->orderByDesc('timestamp')
                     ->first();
             }
 
             if (! $state) {
-                $this->line("Skipping {$vehicle->name} — no high-SOC state in last 24h.");
+                $this->line("Skipping {$vehicle->name} — no state with >= 70% SOC in last 24h.");
 
                 continue;
             }
