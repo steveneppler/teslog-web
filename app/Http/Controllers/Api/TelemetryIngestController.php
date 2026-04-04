@@ -38,12 +38,17 @@ class TelemetryIngestController extends Controller
             $timestamp = $record['created_at'] ?? $now->toIso8601String();
 
             foreach ($record['data'] ?? [] as $field) {
+                // Tesla sends literal "null" string when a field has no value — skip it
+                if (! isset($field['value']) || $field['value'] === 'null') {
+                    continue;
+                }
+
                 $rows[] = [
                     'vehicle_id' => $vehicle->id,
                     'timestamp' => $timestamp,
                     'field_name' => $field['key'] ?? '',
-                    'value_numeric' => isset($field['value']) && is_numeric($field['value']) ? (float) $field['value'] : null,
-                    'value_string' => isset($field['value']) && ! is_numeric($field['value']) ? (string) $field['value'] : null,
+                    'value_numeric' => is_numeric($field['value']) ? (float) $field['value'] : null,
+                    'value_string' => ! is_numeric($field['value']) ? (string) $field['value'] : null,
                     'processed' => false,
                     'created_at' => $now,
                 ];

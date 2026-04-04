@@ -99,6 +99,8 @@ class TailFleetTelemetry extends Command
                 $rows[] = $this->buildRow($vehicle->id, $timestamp, $fieldName, $value, $now);
             }
 
+            $rows = array_filter($rows);
+
             if (! empty($rows)) {
                 TelemetryRaw::insert($rows);
                 $pendingVehicles[$vehicle->id] = true;
@@ -108,8 +110,13 @@ class TailFleetTelemetry extends Command
         }
     }
 
-    private function buildRow(int $vehicleId, string $timestamp, string $fieldName, mixed $value, $now): array
+    private function buildRow(int $vehicleId, string $timestamp, string $fieldName, mixed $value, $now): ?array
     {
+        // Tesla sends literal "null" string when a field has no value — skip it
+        if ($value === 'null') {
+            return null;
+        }
+
         return [
             'vehicle_id' => $vehicleId,
             'timestamp' => $timestamp,

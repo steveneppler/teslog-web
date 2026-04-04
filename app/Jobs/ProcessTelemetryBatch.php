@@ -173,9 +173,9 @@ class ProcessTelemetryBatch implements ShouldQueue
             $key = $map[$field->field_name] ?? null;
             if ($key) {
                 $value = $field->value_numeric ?? $field->value_string;
-                // Fleet Telemetry sends "<invalid>" for unavailable fields
-                if ($value === '<invalid>') {
-                    $value = null;
+                // Fleet Telemetry sends "<invalid>" or literal "null" for unavailable fields
+                if ($value === '<invalid>' || $value === 'null') {
+                    continue;
                 }
                 // Strip stray JSON quotes from string values (MQTT payloads may be JSON-encoded)
                 if (is_string($value) && strlen($value) >= 2 && $value[0] === '"' && $value[-1] === '"') {

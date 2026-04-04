@@ -106,6 +106,11 @@ class MqttTelemetrySubscriber extends Command
             $decoded = json_decode($message);
             $value = (json_last_error() === JSON_ERROR_NONE && is_string($decoded)) ? $decoded : $message;
 
+            // Tesla sends literal "null" string when a field has no value — skip it
+            if ($value === 'null') {
+                return;
+            }
+
             $this->batch[] = [
                 'vin' => $vin,
                 'timestamp' => $timestamp,
