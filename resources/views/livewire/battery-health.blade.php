@@ -64,7 +64,7 @@
                         @foreach($healthRecords as $record)
                             <tr>
                                 <td class="py-2 text-text-secondary">{{ $record->recorded_at->format('M j, Y') }}</td>
-                                <td class="py-2">{{ $record->battery_level }}%</td>
+                                <td class="py-2">{{ round($record->battery_level) }}%</td>
                                 <td class="py-2">{{ number_format($user->convertDistance($record->rated_range), 0) }} {{ $user->distanceUnit() }}</td>
                                 <td class="py-2 {{ $record->degradation_pct !== null && $record->degradation_pct > 10 ? 'text-yellow-500' : '' }}">
                                     {{ $record->degradation_pct !== null ? number_format($record->degradation_pct, 1) . '%' : '—' }}
