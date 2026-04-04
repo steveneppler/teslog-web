@@ -24,6 +24,10 @@ class BatteryHealth extends Model
     {
         return [
             'recorded_at' => 'date',
+            'battery_level' => 'float',
+            'rated_range' => 'float',
+            'ideal_range' => 'float',
+            'degradation_pct' => 'float',
         ];
     }
 
