@@ -120,7 +120,7 @@
             @foreach($chargesByDate as $date => $charges)
                 <div>
                     <h3 class="mb-3 text-sm font-medium text-text-muted">{{ \Carbon\Carbon::parse($date, $userTz)->format('l, M j') }}</h3>
-                    <div class="overflow-hidden rounded-xl border border-border-default">
+                    <div class="overflow-x-auto rounded-xl border border-border-default">
                         <table class="w-full text-left text-sm">
                             <thead class="bg-surface text-xs uppercase text-text-muted">
                                 <tr>
