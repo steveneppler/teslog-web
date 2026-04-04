@@ -41,7 +41,7 @@ class BatteryHealth extends Component
             ->orderByDesc('rated_range')
             ->first();
 
-        $originalRangeAtFull = $bestState
+        $originalRangeAtFull = $bestState && $bestState->battery_level > 0
             ? $bestState->rated_range / $bestState->battery_level * 100
             : null;
 
