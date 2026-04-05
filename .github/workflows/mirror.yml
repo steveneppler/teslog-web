@@ -21,8 +21,11 @@ jobs:
           echo "TAG=$TAG" >> "$GITHUB_OUTPUT"
 
       - name: Push tag to public repo
+        env:
+          PUBLIC_REPO_TOKEN: ${{ secrets.PUBLIC_REPO_TOKEN }}
         run: |
-          git remote add public https://x-access-token:${{ secrets.PUBLIC_REPO_TOKEN }}@github.com/steveneppler/teslog-web.git
+          git config --global url."https://x-access-token:${PUBLIC_REPO_TOKEN}@github.com/".insteadOf "https://github.com/"
+          git remote add public https://github.com/steveneppler/teslog-web.git
           git push public ${{ steps.tag.outputs.TAG }}
 
       - name: Get release notes from private repo
