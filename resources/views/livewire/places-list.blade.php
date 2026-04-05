@@ -213,6 +213,7 @@
         var map = L.map(el, { attributionControl: false });
         L.tileLayer(window.getMapTileUrl(), { maxZoom: 19 }).addTo(map);
         window.registerMap(map);
+        window.setupMapScrollZoom(map);
 
         var bounds = [];
         places.forEach(function(p) {

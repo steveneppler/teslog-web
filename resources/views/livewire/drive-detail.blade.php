@@ -150,6 +150,7 @@
                         var map = L.map(el, { attributionControl: false });
                         L.tileLayer(window.getMapTileUrl(), { maxZoom: 19 }).addTo(map);
                         window.registerMap(map);
+                        window.setupMapScrollZoom(map);
                         var latlngs = pts.map(function(p) { return [p.lat, p.lng]; });
                         var speeds = pts.filter(function(p) { return p.speed != null && p.speed > 0; });
                         var avgSpeed = speeds.length > 0 ? speeds.reduce(function(s, p) { return s + p.speed; }, 0) / speeds.length : 0;

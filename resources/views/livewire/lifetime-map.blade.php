@@ -143,6 +143,7 @@
             __lifetimeMap = L.map(el, { attributionControl: false, zoomControl: true });
             L.tileLayer(window.getMapTileUrl(), { maxZoom: 19 }).addTo(__lifetimeMap);
             window.registerMap(__lifetimeMap);
+            window.setupMapScrollZoom(__lifetimeMap);
         }
 
         // Clear previous routes

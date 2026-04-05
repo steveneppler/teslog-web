@@ -163,6 +163,64 @@
             });
         });
 
+        // Require Ctrl/Cmd to scroll-zoom maps and two fingers to interact on touch
+        window.setupMapScrollZoom = function(map) {
+            map.scrollWheelZoom.disable();
+            var isTouch = 'ontouchstart' in window;
+            var container = map.getContainer();
+
+            map.dragging.disable();
+            if (isTouch) {
+                container.style.touchAction = 'pan-y';
+            }
+
+            var modKey = /Mac|iPhone|iPad/.test(navigator.userAgent) ? '⌘' : 'Ctrl';
+            var hintText = isTouch
+                ? 'Use two fingers to move the map'
+                : 'Hold ' + modKey + ' to move map';
+            var ScrollHint = L.Control.extend({
+                onAdd: function() {
+                    var el = L.DomUtil.create('div', 'map-scroll-hint');
+                    el.textContent = hintText;
+                    return el;
+                }
+            });
+            var hint = new ScrollHint({ position: 'bottomleft' }).addTo(map);
+            var hintEl = hint.getContainer();
+            var hideTimeout;
+            function showHint() {
+                hintEl.classList.add('visible');
+                clearTimeout(hideTimeout);
+                hideTimeout = setTimeout(function() { hintEl.classList.remove('visible'); }, 2500);
+            }
+            container.addEventListener('wheel', function(e) {
+                if (e.ctrlKey || e.metaKey) return;
+                showHint();
+            }, { passive: true });
+            container.addEventListener('mousedown', function(e) {
+                if (!e.ctrlKey && !e.metaKey) showHint();
+            });
+            container.addEventListener('touchstart', function(e) {
+                if (e.touches.length === 1) showHint();
+                if (e.touches.length >= 2) hintEl.classList.remove('visible');
+            }, { passive: true });
+            container.addEventListener('mouseleave', function() {
+                hintEl.classList.remove('visible');
+                map.scrollWheelZoom.disable();
+            });
+            window.addEventListener('keydown', function(e) {
+                if (e.ctrlKey || e.metaKey) {
+                    map.scrollWheelZoom.enable();
+                    map.dragging.enable();
+                    hintEl.classList.remove('visible');
+                }
+            });
+            window.addEventListener('keyup', function() {
+                map.scrollWheelZoom.disable();
+                map.dragging.disable();
+            });
+        };
+
         // Chart.js theme helper
         window.getChartColors = function() {
             var style = getComputedStyle(document.documentElement);

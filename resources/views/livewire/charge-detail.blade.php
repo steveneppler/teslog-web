@@ -116,6 +116,7 @@
                                 if (!el || !window.L) return;
                                 var map = L.map(el, { attributionControl: false });
                                 L.tileLayer(window.getMapTileUrl(), { maxZoom: 19 }).addTo(map);
+                                window.setupMapScrollZoom(map);
                                 L.circleMarker([{{ $charge->latitude }}, {{ $charge->longitude }}], { radius: 8, color: '#22c55e', fillColor: '#22c55e', fillOpacity: 1, weight: 2 }).addTo(map);
                                 map.setView([{{ $charge->latitude }}, {{ $charge->longitude }}], 15);
                                 setTimeout(function() { map.invalidateSize(); }, 300);

@@ -278,6 +278,7 @@
                     window.__summaryMapInstance = L.map(el, { attributionControl: false, zoomControl: true });
                     L.tileLayer(window.getMapTileUrl(), { maxZoom: 19 }).addTo(window.__summaryMapInstance);
                     window.registerMap(window.__summaryMapInstance);
+                    window.setupMapScrollZoom(window.__summaryMapInstance);
                     window.__summaryMapLayers = L.layerGroup().addTo(window.__summaryMapInstance);
                 }
 
@@ -304,7 +305,7 @@
                     if (!routes || routes.length === 0) return;
                     var el = document.getElementById('day-map-' + date);
                     if (!el) return;
-                    var map = L.map(el, { attributionControl: false, zoomControl: false });
+                    var map = L.map(el, { attributionControl: false, zoomControl: false, scrollWheelZoom: false, dragging: false, doubleClickZoom: false, touchZoom: false });
                     L.tileLayer(window.getMapTileUrl(), { maxZoom: 19 }).addTo(map);
                     window.registerMap(map);
                     var allBounds = [];
