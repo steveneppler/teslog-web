@@ -6,7 +6,6 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>{{ $title ?? 'Teslog' }}</title>
     <link rel="icon" type="image/png" href="/favicon.png">
-    <link rel="icon" type="image/x-icon" href="/favicon.ico">
     <x-theme-init />
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
