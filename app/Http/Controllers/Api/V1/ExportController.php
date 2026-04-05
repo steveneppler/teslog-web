@@ -21,10 +21,10 @@ class ExportController extends Controller
             ->orderByDesc('started_at');
 
         if ($request->has('from')) {
-            $query->where('started_at', '>=', $request->input('from'));
+            $query->where('started_at', '>=', Carbon::parse($request->input('from'))->utc());
         }
         if ($request->has('to')) {
-            $query->where('started_at', '<=', $request->input('to'));
+            $query->where('started_at', '<=', Carbon::parse($request->input('to'))->utc());
         }
         if ($request->has('tag')) {
             $query->where('tag', $request->input('tag'));
@@ -153,10 +153,10 @@ class ExportController extends Controller
             ->orderByDesc('started_at');
 
         if ($request->has('from')) {
-            $query->where('started_at', '>=', $request->input('from'));
+            $query->where('started_at', '>=', Carbon::parse($request->input('from'))->utc());
         }
         if ($request->has('to')) {
-            $query->where('started_at', '<=', $request->input('to'));
+            $query->where('started_at', '<=', Carbon::parse($request->input('to'))->utc());
         }
 
         return new StreamedResponse(function () use ($query) {

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\V1;
 use App\Http\Controllers\Controller;
 use App\Models\Drive;
 use App\Models\DrivePoint;
+use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -26,10 +27,10 @@ class DriveController extends Controller
             $query->where('tag', $request->input('tag'));
         }
         if ($request->has('from')) {
-            $query->where('started_at', '>=', $request->input('from'));
+            $query->where('started_at', '>=', Carbon::parse($request->input('from'))->utc());
         }
         if ($request->has('to')) {
-            $query->where('started_at', '<=', $request->input('to'));
+            $query->where('started_at', '<=', Carbon::parse($request->input('to'))->utc());
         }
 
         return response()->json($query->paginate(min((int) $request->input('per_page', 25), 100)));
@@ -78,10 +79,10 @@ class DriveController extends Controller
             $query->where('vehicle_id', $request->input('vehicle_id'));
         }
         if ($request->has('from')) {
-            $query->where('started_at', '>=', $request->input('from'));
+            $query->where('started_at', '>=', Carbon::parse($request->input('from'))->utc());
         }
         if ($request->has('to')) {
-            $query->where('started_at', '<=', $request->input('to'));
+            $query->where('started_at', '<=', Carbon::parse($request->input('to'))->utc());
         }
 
         $driveIds = $query->pluck('id');

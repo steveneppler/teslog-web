@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
 use App\Models\Charge;
+use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -24,10 +25,10 @@ class ChargeController extends Controller
             $query->where('charge_type', $request->input('charge_type'));
         }
         if ($request->has('from')) {
-            $query->where('started_at', '>=', $request->input('from'));
+            $query->where('started_at', '>=', Carbon::parse($request->input('from'))->utc());
         }
         if ($request->has('to')) {
-            $query->where('started_at', '<=', $request->input('to'));
+            $query->where('started_at', '<=', Carbon::parse($request->input('to'))->utc());
         }
 
         return response()->json($query->paginate(min((int) $request->input('per_page', 25), 100)));
