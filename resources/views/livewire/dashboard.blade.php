@@ -8,17 +8,11 @@
                     {{ ($warning['severity'] ?? '') === 'warning' ? 'border-yellow-800 bg-yellow-950/50' : '' }}
                     {{ ($warning['severity'] ?? '') === 'info' ? 'border-blue-800 bg-blue-950/50' : '' }}">
                     @if(($warning['severity'] ?? '') === 'critical')
-                        <svg class="mt-0.5 h-5 w-5 flex-shrink-0 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
-                        </svg>
+                        <x-heroicon-o-exclamation-triangle class="mt-0.5 h-5 w-5 flex-shrink-0 text-red-400" />
                     @elseif(($warning['severity'] ?? '') === 'warning')
-                        <svg class="mt-0.5 h-5 w-5 flex-shrink-0 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                        </svg>
+                        <x-heroicon-o-exclamation-circle class="mt-0.5 h-5 w-5 flex-shrink-0 text-yellow-400" />
                     @else
-                        <svg class="mt-0.5 h-5 w-5 flex-shrink-0 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                        </svg>
+                        <x-heroicon-o-information-circle class="mt-0.5 h-5 w-5 flex-shrink-0 text-blue-400" />
                     @endif
                     <div class="flex-1">
                         <p class="text-sm font-medium
@@ -41,14 +35,10 @@
         <div class="mb-6 flex items-start gap-3 rounded-lg border px-4 py-3
             {{ $quickCommandSuccess ? 'border-green-800 bg-green-950/50' : 'border-red-800 bg-red-950/50' }}">
             @if($quickCommandSuccess)
-                <svg class="mt-0.5 h-5 w-5 flex-shrink-0 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
-                </svg>
+                <x-heroicon-o-check class="mt-0.5 h-5 w-5 flex-shrink-0 text-green-400" />
                 <p class="text-sm font-medium text-green-300">{{ $quickCommandResult }}</p>
             @else
-                <svg class="mt-0.5 h-5 w-5 flex-shrink-0 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
-                </svg>
+                <x-heroicon-o-exclamation-triangle class="mt-0.5 h-5 w-5 flex-shrink-0 text-red-400" />
                 <p class="text-sm font-medium text-red-300">{{ $quickCommandResult }}</p>
             @endif
         </div>
@@ -56,9 +46,7 @@
 
     @if($vehicles->isEmpty())
         <div class="flex flex-col items-center justify-center rounded-xl border border-border-default bg-surface p-12 text-center">
-            <svg class="mb-4 h-16 w-16 text-text-faint" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M13 10V3L4 14h7v7l9-11h-7z"/>
-            </svg>
+            <x-heroicon-o-bolt class="mb-4 h-16 w-16 text-text-faint" />
             <h3 class="text-lg font-semibold text-text-secondary">No vehicles linked</h3>
             <p class="mt-1 text-sm text-text-subtle">Add your first Tesla to start logging data.</p>
             <a href="{{ route('setup') }}" class="mt-4 rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700">
@@ -126,10 +114,10 @@
                         <div class="mt-3 flex items-center justify-between">
                             <div class="flex items-center gap-1.5 text-xs">
                                 @if($vehicle->latestState->locked)
-                                    <svg class="h-3.5 w-3.5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+                                    <x-heroicon-o-lock-closed class="h-3.5 w-3.5 text-green-400" />
                                     <span class="text-green-400">Locked</span>
                                 @else
-                                    <svg class="h-3.5 w-3.5 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z"/></svg>
+                                    <x-heroicon-o-lock-open class="h-3.5 w-3.5 text-orange-400" />
                                     <span class="text-orange-400">Unlocked</span>
                                 @endif
                             </div>
@@ -152,9 +140,9 @@
                             </span>
                             <span wire:loading.remove wire:target="quickCommand({{ $vehicle->id }}, '{{ $vehicle->latestState->locked ? 'unlock' : 'lock' }}')">
                                 @if($vehicle->latestState->locked)
-                                    <svg class="h-7 w-7 text-orange-400" fill="currentColor" viewBox="0 0 24 24"><path fill-rule="evenodd" d="M12 1.5a5.25 5.25 0 00-5.25 5.25v3a3 3 0 00-3 3v6.75a3 3 0 003 3h10.5a3 3 0 003-3v-6.75a3 3 0 00-3-3v-3c0-2.9-2.35-5.25-5.25-5.25zm3.75 8.25v-3a3.75 3.75 0 10-7.5 0v3h7.5z" clip-rule="evenodd"/></svg>
+                                    <x-heroicon-s-lock-closed class="h-7 w-7 text-orange-400" />
                                 @else
-                                    <svg class="h-7 w-7 text-orange-400" fill="currentColor" viewBox="0 0 24 24"><path d="M18 1.5c2.9 0 5.25 2.35 5.25 5.25v3.75a.75.75 0 01-1.5 0V6.75a3.75 3.75 0 00-7.5 0v3a3 3 0 013 3v6.75a3 3 0 01-3 3H3.75a3 3 0 01-3-3v-6.75a3 3 0 013-3h10.5v-3c0-2.9 2.35-5.25 5.25-5.25z"/></svg>
+                                    <x-heroicon-s-lock-open class="h-7 w-7 text-orange-400" />
                                 @endif
                             </span>
                             <span class="text-xs font-medium text-orange-400">{{ $vehicle->latestState->locked ? 'Unlock' : 'Lock' }}</span>
@@ -168,9 +156,7 @@
                                 <svg class="h-7 w-7 animate-spin text-blue-400" viewBox="0 0 24 24" fill="none"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
                             </span>
                             <span wire:loading.remove wire:target="quickCommand({{ $vehicle->id }}, '{{ $vehicle->latestState->climate_on ? 'climate_off' : 'climate_on' }}')">
-                                <svg class="h-7 w-7 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 3v2m0 14v2m9-9h-2M5 12H3m13.364 5.364l-1.414-1.414M7.05 7.05L5.636 5.636m12.728 0l-1.414 1.414M7.05 16.95l-1.414 1.414M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
-                                </svg>
+                                <x-heroicon-o-sun class="h-7 w-7 text-blue-400" />
                             </span>
                             <span class="text-xs font-medium text-blue-400">{{ $vehicle->latestState->climate_on ? 'Climate Off' : 'Climate On' }}</span>
                         </button>
@@ -183,7 +169,7 @@
                                 <svg class="h-7 w-7 animate-spin text-green-400" viewBox="0 0 24 24" fill="none"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
                             </span>
                             <span wire:loading.remove wire:target="quickCommand({{ $vehicle->id }}, '{{ $vehicle->latestState->charge_state === 'Charging' ? 'charge_stop' : 'charge_start' }}')">
-                                <svg class="h-7 w-7 text-green-400" fill="currentColor" viewBox="0 0 24 24"><path fill-rule="evenodd" d="M14.615 1.595a.75.75 0 01.359.852L12.982 9.75h7.268a.75.75 0 01.548 1.262l-10.5 11.25a.75.75 0 01-1.272-.71l1.992-7.302H3.75a.75.75 0 01-.548-1.262l10.5-11.25a.75.75 0 01.913-.143z" clip-rule="evenodd"/></svg>
+                                <x-heroicon-s-bolt class="h-7 w-7 text-green-400" />
                             </span>
                             <span class="text-xs font-medium text-green-400">{{ $vehicle->latestState->charge_state === 'Charging' ? 'Stop Charge' : 'Start Charge' }}</span>
                         </button>
@@ -204,7 +190,7 @@
                                 <span>&middot;</span>
                             @endif
                             <span>Health</span>
-                            <svg class="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                            <x-heroicon-m-chevron-right class="h-3 w-3" />
                         </a>
                     </div>
                 @endif
