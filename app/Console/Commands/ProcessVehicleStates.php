@@ -10,6 +10,7 @@ use App\Models\DrivePoint;
 use App\Models\Vehicle;
 use App\Models\VehicleState;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\DB;
 
 class ProcessVehicleStates extends Command
 {
@@ -45,24 +46,39 @@ class ProcessVehicleStates extends Command
                 // and/or --before are provided, scope the delete to drives/charges
                 // whose started_at falls within the window, so targeted backfills
                 // don't nuke history outside the requested range.
-                $driveQuery = Drive::where('vehicle_id', $vehicle->id);
-                $chargeQuery = Charge::where('vehicle_id', $vehicle->id);
-                if ($after) {
-                    $driveQuery->where('started_at', '>=', $after);
-                    $chargeQuery->where('started_at', '>=', $after);
-                }
-                if ($before) {
-                    $driveQuery->where('started_at', '<=', $before);
-                    $chargeQuery->where('started_at', '<=', $before);
-                }
+                //
+                // DrivePoint/ChargePoint deletes use subqueries (not plucked ID
+                // lists) so we don't materialize large ID arrays in PHP or hit
+                // DB placeholder limits. The whole block runs in a transaction
+                // so the parent/child deletes stay consistent if one fails.
+                $buildDriveQuery = function () use ($vehicle, $after, $before) {
+                    $q = Drive::where('vehicle_id', $vehicle->id);
+                    if ($after) {
+                        $q->where('started_at', '>=', $after);
+                    }
+                    if ($before) {
+                        $q->where('started_at', '<=', $before);
+                    }
+                    return $q;
+                };
+                $buildChargeQuery = function () use ($vehicle, $after, $before) {
+                    $q = Charge::where('vehicle_id', $vehicle->id);
+                    if ($after) {
+                        $q->where('started_at', '>=', $after);
+                    }
+                    if ($before) {
+                        $q->where('started_at', '<=', $before);
+                    }
+                    return $q;
+                };
 
-                $driveIds = $driveQuery->pluck('id');
-                DrivePoint::whereIn('drive_id', $driveIds)->delete();
-                Drive::whereIn('id', $driveIds)->delete();
+                DB::transaction(function () use ($buildDriveQuery, $buildChargeQuery) {
+                    DrivePoint::whereIn('drive_id', $buildDriveQuery()->select('id'))->delete();
+                    $buildDriveQuery()->delete();
 
-                $chargeIds = $chargeQuery->pluck('id');
-                ChargePoint::whereIn('charge_id', $chargeIds)->delete();
-                Charge::whereIn('id', $chargeIds)->delete();
+                    ChargePoint::whereIn('charge_id', $buildChargeQuery()->select('id'))->delete();
+                    $buildChargeQuery()->delete();
+                });
 
                 $scope = ($after || $before)
                     ? sprintf(' in window [%s .. %s]', $after ?: '-', $before ?: '-')

@@ -3,7 +3,9 @@
 namespace Tests\Feature\Commands;
 
 use App\Models\Charge;
+use App\Models\ChargePoint;
 use App\Models\Drive;
+use App\Models\DrivePoint;
 use App\Models\Vehicle;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -91,10 +93,42 @@ class ProcessVehicleStatesTest extends TestCase
         $target = Vehicle::factory()->create();
         $other = Vehicle::factory()->create();
 
+        // Also create a target-vehicle charge + drive inside the window so the
+        // force-delete path actually runs on something, giving a regression in
+        // either delete query a chance to misfire.
+        Charge::factory()->create([
+            'vehicle_id' => $target->id,
+            'started_at' => '2026-04-09 10:00:00',
+            'ended_at' => '2026-04-09 11:00:00',
+        ]);
+        Drive::factory()->create([
+            'vehicle_id' => $target->id,
+            'started_at' => '2026-04-09 12:00:00',
+            'ended_at' => '2026-04-09 12:30:00',
+        ]);
+
         $otherCharge = Charge::factory()->create([
             'vehicle_id' => $other->id,
             'started_at' => '2026-04-09 10:00:00',
             'ended_at' => '2026-04-09 11:00:00',
+        ]);
+        $otherChargePoint = ChargePoint::create([
+            'charge_id' => $otherCharge->id,
+            'timestamp' => '2026-04-09 10:15:00',
+            'battery_level' => 50,
+            'charger_power_kw' => 11,
+        ]);
+
+        $otherDrive = Drive::factory()->create([
+            'vehicle_id' => $other->id,
+            'started_at' => '2026-04-09 12:00:00',
+            'ended_at' => '2026-04-09 12:30:00',
+        ]);
+        $otherDrivePoint = DrivePoint::create([
+            'drive_id' => $otherDrive->id,
+            'timestamp' => '2026-04-09 12:15:00',
+            'latitude' => 38.5,
+            'longitude' => -106.0,
         ]);
 
         $this->artisan('teslog:process-states', [
@@ -104,6 +138,11 @@ class ProcessVehicleStatesTest extends TestCase
             '--before' => '2026-04-10 00:00:00',
         ])->assertSuccessful();
 
+        // Other vehicle's rows all survive — both delete queries correctly
+        // scoped to vehicle_id.
         $this->assertDatabaseHas('charges', ['id' => $otherCharge->id]);
+        $this->assertDatabaseHas('charge_points', ['id' => $otherChargePoint->id]);
+        $this->assertDatabaseHas('drives', ['id' => $otherDrive->id]);
+        $this->assertDatabaseHas('drive_points', ['id' => $otherDrivePoint->id]);
     }
 }
