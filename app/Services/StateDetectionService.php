@@ -16,9 +16,21 @@ class StateDetectionService
             return 'driving';
         }
 
-        // Charging: Tesla uses many charge_state values (Charging, Enable, Startup,
-        // QualifyLineConfig, etc.) and may add more. Instead of allowlisting, treat
-        // any non-empty charge_state as charging UNLESS it's a known "not charging" value.
+        // Charging detection. Tesla Fleet Telemetry sometimes reports
+        // charge_state='Idle' for the bulk of an active Supercharger session while
+        // charger_power is >100 kW, so treat any meaningful charger_power as a
+        // definitive charging signal. The >1 kW threshold matches the batch
+        // reprocessor in ProcessVehicleStates and is above spurious ~0.04 kW
+        // idle-bus readings.
+        $chargerPower = $snapshot['charger_power'] ?? 0;
+        if (is_numeric($chargerPower) && $chargerPower > 1) {
+            return 'charging';
+        }
+
+        // Fall back to charge_state-based charging detection. Tesla uses many
+        // values (Charging, Enable, Startup, QualifyLineConfig, etc.) and may
+        // add more, so we blacklist known "not charging" values instead of
+        // allowlisting charging states.
         $chargeState = $snapshot['charge_state'] ?? '';
         $notChargingStates = ['', 'Idle', 'Disconnected', 'Complete', 'NoPower', 'Shutdown', 'Stopped'];
         if ($chargeState && ! in_array($chargeState, $notChargingStates)) {
