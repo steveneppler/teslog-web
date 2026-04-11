@@ -89,4 +89,47 @@ class StateDetectionServiceTest extends TestCase
         $state = $this->service->detectState(['speed' => 'invalid'], 'idle');
         $this->assertEquals('idle', $state);
     }
+
+    public function test_detect_charging_by_power_when_charge_state_is_idle(): void
+    {
+        // Tesla Fleet Telemetry reports charge_state='Idle' during the bulk of
+        // an active Supercharger session, while charger_power stays >100 kW.
+        // The real-time path must not trust charge_state alone.
+        $state = $this->service->detectState([
+            'speed' => 0,
+            'gear' => 'P',
+            'charge_state' => 'Idle',
+            'charger_power' => 139,
+        ], 'driving');
+        $this->assertEquals('charging', $state);
+    }
+
+    public function test_detect_charging_by_power_with_no_charge_state(): void
+    {
+        $state = $this->service->detectState([
+            'speed' => 0,
+            'charger_power' => 50,
+        ], 'driving');
+        $this->assertEquals('charging', $state);
+    }
+
+    public function test_low_charger_power_not_charging(): void
+    {
+        // Idle-bus noise (~0.04 kW) must not be misread as charging.
+        $state = $this->service->detectState([
+            'speed' => 0,
+            'charge_state' => 'Idle',
+            'charger_power' => 0.04,
+        ], 'driving');
+        $this->assertEquals('idle', $state);
+    }
+
+    public function test_driving_still_wins_over_charger_power(): void
+    {
+        $state = $this->service->detectState([
+            'speed' => 60,
+            'charger_power' => 50,
+        ], 'idle');
+        $this->assertEquals('driving', $state);
+    }
 }
