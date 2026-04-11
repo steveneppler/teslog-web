@@ -41,16 +41,33 @@ class ProcessVehicleStates extends Command
             $this->info("Processing vehicle: {$vehicle->name} ({$vehicle->vin})");
 
             if ($force) {
-                // Delete existing processed data for this vehicle
-                $driveIds = Drive::where('vehicle_id', $vehicle->id)->pluck('id');
+                // Delete existing processed data for this vehicle. When --after
+                // and/or --before are provided, scope the delete to drives/charges
+                // whose started_at falls within the window, so targeted backfills
+                // don't nuke history outside the requested range.
+                $driveQuery = Drive::where('vehicle_id', $vehicle->id);
+                $chargeQuery = Charge::where('vehicle_id', $vehicle->id);
+                if ($after) {
+                    $driveQuery->where('started_at', '>=', $after);
+                    $chargeQuery->where('started_at', '>=', $after);
+                }
+                if ($before) {
+                    $driveQuery->where('started_at', '<=', $before);
+                    $chargeQuery->where('started_at', '<=', $before);
+                }
+
+                $driveIds = $driveQuery->pluck('id');
                 DrivePoint::whereIn('drive_id', $driveIds)->delete();
-                Drive::where('vehicle_id', $vehicle->id)->delete();
+                Drive::whereIn('id', $driveIds)->delete();
 
-                $chargeIds = Charge::where('vehicle_id', $vehicle->id)->pluck('id');
+                $chargeIds = $chargeQuery->pluck('id');
                 ChargePoint::whereIn('charge_id', $chargeIds)->delete();
-                Charge::where('vehicle_id', $vehicle->id)->delete();
+                Charge::whereIn('id', $chargeIds)->delete();
 
-                $this->info('  Cleared existing drives and charges.');
+                $scope = ($after || $before)
+                    ? sprintf(' in window [%s .. %s]', $after ?: '-', $before ?: '-')
+                    : '';
+                $this->info("  Cleared existing drives and charges{$scope}.");
             } elseif (! $after) {
                 // Without --force or --after, check if we should auto-detect the incremental start point
                 $lastDrive = Drive::where('vehicle_id', $vehicle->id)->orderByDesc('ended_at')->first();
