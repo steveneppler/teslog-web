@@ -27,9 +27,10 @@ class StateDetectionService
             return 'charging';
         }
 
-        // Fall back to the charge_state allowlist. Tesla uses many values
-        // (Charging, Enable, Startup, QualifyLineConfig, etc.) and may add more,
-        // so we blacklist known "not charging" values instead of allowlisting.
+        // Fall back to charge_state-based charging detection. Tesla uses many
+        // values (Charging, Enable, Startup, QualifyLineConfig, etc.) and may
+        // add more, so we blacklist known "not charging" values instead of
+        // allowlisting charging states.
         $chargeState = $snapshot['charge_state'] ?? '';
         $notChargingStates = ['', 'Idle', 'Disconnected', 'Complete', 'NoPower', 'Shutdown', 'Stopped'];
         if ($chargeState && ! in_array($chargeState, $notChargingStates)) {
