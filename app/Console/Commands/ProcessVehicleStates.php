@@ -10,14 +10,15 @@ use App\Models\DrivePoint;
 use App\Models\Vehicle;
 use App\Models\VehicleState;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\DB;
 
 class ProcessVehicleStates extends Command
 {
     protected $signature = 'teslog:process-states
         {--vehicle= : Vehicle ID (processes all if omitted)}
-        {--force : Reprocess even if drives/charges already exist}
-        {--after= : Only process states after this timestamp}
-        {--before= : Only process states before this timestamp}';
+        {--force : Reprocess even if drives/charges already exist. When combined with --after/--before, only deletes drives/charges whose started_at falls inside the window}
+        {--after= : Only process vehicle_states at or after this timestamp. With --force, also scopes the delete to drives/charges with started_at >= this value. Pick a window wider than any expected session — a drive/charge that begins before --after will not be re-detected correctly, since the state scan starts at --after}
+        {--before= : Only process vehicle_states at or before this timestamp. With --force, also scopes the delete to drives/charges with started_at <= this value. Same boundary caveat as --after}';
 
     protected $description = 'Process vehicle states into drives and charges';
 
@@ -41,16 +42,48 @@ class ProcessVehicleStates extends Command
             $this->info("Processing vehicle: {$vehicle->name} ({$vehicle->vin})");
 
             if ($force) {
-                // Delete existing processed data for this vehicle
-                $driveIds = Drive::where('vehicle_id', $vehicle->id)->pluck('id');
-                DrivePoint::whereIn('drive_id', $driveIds)->delete();
-                Drive::where('vehicle_id', $vehicle->id)->delete();
+                // Delete existing processed data for this vehicle. When --after
+                // and/or --before are provided, scope the delete to drives/charges
+                // whose started_at falls within the window, so targeted backfills
+                // don't nuke history outside the requested range.
+                //
+                // DrivePoint/ChargePoint deletes use subqueries (not plucked ID
+                // lists) so we don't materialize large ID arrays in PHP or hit
+                // DB placeholder limits. The whole block runs in a transaction
+                // so the parent/child deletes stay consistent if one fails.
+                $buildDriveQuery = function () use ($vehicle, $after, $before) {
+                    $q = Drive::where('vehicle_id', $vehicle->id);
+                    if ($after) {
+                        $q->where('started_at', '>=', $after);
+                    }
+                    if ($before) {
+                        $q->where('started_at', '<=', $before);
+                    }
+                    return $q;
+                };
+                $buildChargeQuery = function () use ($vehicle, $after, $before) {
+                    $q = Charge::where('vehicle_id', $vehicle->id);
+                    if ($after) {
+                        $q->where('started_at', '>=', $after);
+                    }
+                    if ($before) {
+                        $q->where('started_at', '<=', $before);
+                    }
+                    return $q;
+                };
 
-                $chargeIds = Charge::where('vehicle_id', $vehicle->id)->pluck('id');
-                ChargePoint::whereIn('charge_id', $chargeIds)->delete();
-                Charge::where('vehicle_id', $vehicle->id)->delete();
+                DB::transaction(function () use ($buildDriveQuery, $buildChargeQuery) {
+                    DrivePoint::whereIn('drive_id', $buildDriveQuery()->select('id'))->delete();
+                    $buildDriveQuery()->delete();
 
-                $this->info('  Cleared existing drives and charges.');
+                    ChargePoint::whereIn('charge_id', $buildChargeQuery()->select('id'))->delete();
+                    $buildChargeQuery()->delete();
+                });
+
+                $scope = ($after || $before)
+                    ? sprintf(' in window [%s .. %s]', $after ?: '-', $before ?: '-')
+                    : '';
+                $this->info("  Cleared existing drives and charges{$scope}.");
             } elseif (! $after) {
                 // Without --force or --after, check if we should auto-detect the incremental start point
                 $lastDrive = Drive::where('vehicle_id', $vehicle->id)->orderByDesc('ended_at')->first();
