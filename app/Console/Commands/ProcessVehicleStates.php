@@ -16,9 +16,9 @@ class ProcessVehicleStates extends Command
 {
     protected $signature = 'teslog:process-states
         {--vehicle= : Vehicle ID (processes all if omitted)}
-        {--force : Reprocess even if drives/charges already exist}
-        {--after= : Only process states after this timestamp}
-        {--before= : Only process states before this timestamp}';
+        {--force : Reprocess even if drives/charges already exist. When combined with --after/--before, only deletes drives/charges whose started_at falls inside the window}
+        {--after= : Only process vehicle_states at or after this timestamp. With --force, also scopes the delete to drives/charges with started_at >= this value. Pick a window wider than any expected session — a drive/charge that begins before --after will not be re-detected correctly, since the state scan starts at --after}
+        {--before= : Only process vehicle_states at or before this timestamp. With --force, also scopes the delete to drives/charges with started_at <= this value. Same boundary caveat as --after}';
 
     protected $description = 'Process vehicle states into drives and charges';
 
