@@ -48,7 +48,7 @@ class VehicleState extends Model
             'locked' => 'boolean',
             'sentry_mode' => 'boolean',
             'climate_on' => 'boolean',
-            'battery_level' => 'integer',
+            'battery_level' => 'float',
             'rated_range' => 'float',
         ];
     }
