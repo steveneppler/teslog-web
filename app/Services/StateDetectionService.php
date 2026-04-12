@@ -37,6 +37,13 @@ class StateDetectionService
             return 'charging';
         }
 
+        // Fallback: detect charging from power delivery data even when
+        // charge_state is absent (Tesla doesn't always send ChargeState continuously)
+        $chargerPower = $snapshot['charger_power'] ?? 0;
+        if ($chargerPower && $chargerPower > 0.5) {
+            return 'charging';
+        }
+
         // If we were driving and now stopped, transition to idle
         if ($previousState === 'driving') {
             return 'idle';
