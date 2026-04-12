@@ -9,6 +9,7 @@ use App\Models\Drive;
 use App\Models\DrivePoint;
 use App\Models\Vehicle;
 use App\Models\VehicleState;
+use Carbon\Carbon;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 
@@ -26,8 +27,8 @@ class ProcessVehicleStates extends Command
     {
         $vehicleId = $this->option('vehicle');
         $force = $this->option('force');
-        $after = $this->option('after');
-        $before = $this->option('before');
+        $after = $this->option('after') ? Carbon::parse($this->option('after'))->utc() : null;
+        $before = $this->option('before') ? Carbon::parse($this->option('before'))->utc() : null;
 
         $vehicles = $vehicleId
             ? Vehicle::where('id', $vehicleId)->get()
