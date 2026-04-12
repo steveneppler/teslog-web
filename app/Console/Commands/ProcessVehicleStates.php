@@ -27,8 +27,8 @@ class ProcessVehicleStates extends Command
     {
         $vehicleId = $this->option('vehicle');
         $force = $this->option('force');
-        $after = $this->option('after') ? Carbon::parse($this->option('after'))->utc() : null;
-        $before = $this->option('before') ? Carbon::parse($this->option('before'))->utc() : null;
+        $after = $this->option('after') ? Carbon::parse($this->option('after'))->utc()->toDateTimeString() : null;
+        $before = $this->option('before') ? Carbon::parse($this->option('before'))->utc()->toDateTimeString() : null;
 
         $vehicles = $vehicleId
             ? Vehicle::where('id', $vehicleId)->get()
