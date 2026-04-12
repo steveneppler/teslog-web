@@ -211,7 +211,11 @@ class ProcessTelemetryBatch implements ShouldQueue
         $acPower = $snapshot['ac_charging_power'] ?? null;
         $dcPower = $snapshot['dc_charging_power'] ?? null;
         if ($acPower !== null || $dcPower !== null) {
-            $snapshot['charger_power'] = max((float) ($acPower ?? 0), (float) ($dcPower ?? 0));
+            $snapshot['charger_power'] = max(
+                (float) ($snapshot['charger_power'] ?? 0),
+                (float) ($acPower ?? 0),
+                (float) ($dcPower ?? 0),
+            );
             unset($snapshot['ac_charging_power'], $snapshot['dc_charging_power']);
         }
 

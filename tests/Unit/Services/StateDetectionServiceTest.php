@@ -126,7 +126,8 @@ class StateDetectionServiceTest extends TestCase
 
     public function test_charger_power_fallback_above_threshold(): void
     {
-        $state = $this->service->detectState(['speed' => 0, 'charger_power' => 1.4], 'idle');
+        // Use 0.8 kW — above the 0.5 fallback but below the 1 kW primary check
+        $state = $this->service->detectState(['speed' => 0, 'charger_power' => 0.8], 'idle');
         $this->assertEquals('charging', $state);
     }
 
