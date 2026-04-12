@@ -37,6 +37,13 @@ class StateDetectionService
             return 'charging';
         }
 
+        // Fallback: detect charging from power delivery data even when
+        // charge_state is absent (Tesla doesn't always send ChargeState continuously).
+        // Catches low-power AC charging (0.5–1 kW) not covered by the >1 kW check above.
+        if ($chargerPower && $chargerPower > 0.5) {
+            return 'charging';
+        }
+
         // If we were driving and now stopped, transition to idle
         if ($previousState === 'driving') {
             return 'idle';

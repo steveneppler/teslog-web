@@ -80,12 +80,18 @@ class ProcessTelemetryBatch implements ShouldQueue
             $carried = array_merge($carried, $incremental);
 
             // Prevent stale carry-forward from keeping the vehicle stuck in "charging".
-            // If ChargeState wasn't freshly received in this batch AND charger power is
-            // absent or zero, clear the carried charge_state so the state machine
-            // can transition to idle.
+            // If ChargeState wasn't freshly received in this batch AND no charger
+            // activity is detected, clear the carried charge_state so the state
+            // machine can transition to idle. Check voltage+current in addition to
+            // power, since charger_power can be zero due to telemetry field ordering
+            // while the charger is still connected.
             if (! isset($incremental['charge_state'])) {
                 $chargerPower = $carried['charger_power'] ?? 0;
-                if (! $chargerPower || $chargerPower <= 0) {
+                $chargerVoltage = $carried['charger_voltage'] ?? 0;
+                $chargerCurrent = $carried['charger_current'] ?? 0;
+                $chargerConnected = ($chargerPower && $chargerPower > 0)
+                    || ($chargerVoltage && $chargerVoltage > 0 && $chargerCurrent && $chargerCurrent > 0);
+                if (! $chargerConnected) {
                     unset($carried['charge_state']);
                 }
             }
@@ -143,8 +149,8 @@ class ProcessTelemetryBatch implements ShouldQueue
             'IdealBatteryRange' => 'ideal_range',
             'VehicleSpeed' => 'speed',
             'Power' => 'power',
-            'ACChargingPower' => 'charger_power',
-            'DCChargingPower' => 'charger_power',
+            'ACChargingPower' => 'ac_charging_power',
+            'DCChargingPower' => 'dc_charging_power',
             'Odometer' => 'odometer',
             'Latitude' => 'latitude',
             'Longitude' => 'longitude',
@@ -197,6 +203,20 @@ class ProcessTelemetryBatch implements ShouldQueue
 
         if (isset($snapshot['charge_state']) && is_string($snapshot['charge_state'])) {
             // Fleet telemetry sends "Idle", "Charging", "Complete", etc. — keep as-is
+        }
+
+        // Combine AC and DC charging power into a single charger_power value.
+        // Tesla sends both fields simultaneously — during AC charging DCChargingPower=0,
+        // during DC charging ACChargingPower=0. Take the max to get the actual power.
+        $acPower = $snapshot['ac_charging_power'] ?? null;
+        $dcPower = $snapshot['dc_charging_power'] ?? null;
+        if ($acPower !== null || $dcPower !== null) {
+            $snapshot['charger_power'] = max(
+                (float) ($snapshot['charger_power'] ?? 0),
+                (float) ($acPower ?? 0),
+                (float) ($dcPower ?? 0),
+            );
+            unset($snapshot['ac_charging_power'], $snapshot['dc_charging_power']);
         }
 
         // Convert boolean-like fields
