@@ -124,6 +124,24 @@ class StateDetectionServiceTest extends TestCase
         $this->assertEquals('idle', $state);
     }
 
+    public function test_charger_power_fallback_above_threshold(): void
+    {
+        $state = $this->service->detectState(['speed' => 0, 'charger_power' => 1.4], 'idle');
+        $this->assertEquals('charging', $state);
+    }
+
+    public function test_charger_power_fallback_at_threshold_not_charging(): void
+    {
+        $state = $this->service->detectState(['speed' => 0, 'charger_power' => 0.5], 'idle');
+        $this->assertEquals('idle', $state);
+    }
+
+    public function test_charger_power_fallback_below_threshold_not_charging(): void
+    {
+        $state = $this->service->detectState(['speed' => 0, 'charger_power' => 0.05], 'idle');
+        $this->assertEquals('idle', $state);
+    }
+
     public function test_driving_still_wins_over_charger_power(): void
     {
         $state = $this->service->detectState([
