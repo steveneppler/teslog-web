@@ -1,0 +1,171 @@
+<?php
+
+namespace Tests\Feature\Jobs;
+
+use App\Jobs\ProcessChargeJob;
+use App\Models\Charge;
+use App\Models\Vehicle;
+use App\Models\VehicleState;
+use App\Services\ChargeCostService;
+use App\Services\GeocodingService;
+use App\Services\PlaceMatchingService;
+use Carbon\Carbon;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Http;
+use Tests\TestCase;
+
+class ProcessChargeJobTest extends TestCase
+{
+    use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        // Geocoder makes external HTTP calls — fake them.
+        Http::fake();
+    }
+
+    private function runJob(int $vehicleId, Carbon $endedAt): void
+    {
+        (new ProcessChargeJob($vehicleId, $endedAt))->handle(
+            app(GeocodingService::class),
+            app(PlaceMatchingService::class),
+            app(ChargeCostService::class),
+        );
+    }
+
+    public function test_brief_idle_island_within_charge_does_not_truncate_session_start(): void
+    {
+        $vehicle = Vehicle::factory()->create();
+        $base = Carbon::parse('2026-04-15 10:00:00');
+
+        // First charging state — captures the true charge start time.
+        VehicleState::factory()->create([
+            'vehicle_id' => $vehicle->id,
+            'timestamp' => $base->copy(),
+            'state' => 'charging',
+            'battery_level' => 60.0,
+            'energy_remaining' => 44.0,
+            'charger_power' => 11.0,
+            'rated_range' => 150.0,
+            'latitude' => 39.0,
+            'longitude' => -108.5,
+        ]);
+
+        // Brief 30-second idle island (the kind of transient state-detection
+        // drop that happens at the start of an AC charge when charge_state
+        // briefly leaves the active-charging allowlist).
+        VehicleState::factory()->create([
+            'vehicle_id' => $vehicle->id,
+            'timestamp' => $base->copy()->addSeconds(30),
+            'state' => 'idle',
+            'battery_level' => 60.05,
+            'energy_remaining' => 44.02,
+            'charger_power' => 0.1,
+        ]);
+
+        // Resume charging for ~6 minutes.
+        for ($i = 0; $i < 12; $i++) {
+            VehicleState::factory()->create([
+                'vehicle_id' => $vehicle->id,
+                'timestamp' => $base->copy()->addSeconds(60 + $i * 30),
+                'state' => 'charging',
+                'battery_level' => 60.5 + $i * 0.5,
+                'energy_remaining' => 44.5 + $i * 0.3,
+                'charger_power' => 11.0,
+                'rated_range' => 150.0,
+                'latitude' => 39.0,
+                'longitude' => -108.5,
+            ]);
+        }
+
+        // Final transition to idle (end of charge).
+        $endedAt = $base->copy()->addMinutes(7);
+        VehicleState::factory()->create([
+            'vehicle_id' => $vehicle->id,
+            'timestamp' => $endedAt,
+            'state' => 'idle',
+            'battery_level' => 66.5,
+            'energy_remaining' => 48.1,
+            'charger_power' => 0,
+        ]);
+
+        $this->runJob($vehicle->id, $endedAt);
+
+        $this->assertDatabaseCount('charges', 1);
+        $charge = Charge::first();
+        // The brief idle island must NOT have truncated the session start —
+        // started_at must equal the very first charging state's timestamp.
+        $this->assertEquals(
+            $base->toDateTimeString(),
+            $charge->started_at->toDateTimeString(),
+        );
+        $this->assertEquals(60.0, $charge->start_battery_level);
+    }
+
+    public function test_gap_just_over_two_minutes_is_not_bridged(): void
+    {
+        $vehicle = Vehicle::factory()->create();
+
+        // Earlier charging state at 10:00. Session "ends" here from the
+        // perspective of contiguous charging timestamps.
+        VehicleState::factory()->create([
+            'vehicle_id' => $vehicle->id,
+            'timestamp' => '2026-04-15 10:00:00',
+            'state' => 'charging',
+            'battery_level' => 55.0,
+            'energy_remaining' => 39.0,
+            'charger_power' => 11.0,
+            'rated_range' => 140.0,
+            'latitude' => 39.0,
+            'longitude' => -108.5,
+        ]);
+        VehicleState::factory()->create([
+            'vehicle_id' => $vehicle->id,
+            'timestamp' => '2026-04-15 10:00:30',
+            'state' => 'idle',
+            'battery_level' => 55.0,
+            'energy_remaining' => 39.0,
+            'charger_power' => 0,
+        ]);
+
+        // New charging block starts 3 minutes later — gap between
+        // consecutive charging timestamps is 3 min, which is over the
+        // 2-min bridge threshold and must NOT be bridged.
+        $newSessionStart = Carbon::parse('2026-04-15 10:03:00');
+        for ($i = 0; $i < 12; $i++) {
+            VehicleState::factory()->create([
+                'vehicle_id' => $vehicle->id,
+                'timestamp' => $newSessionStart->copy()->addSeconds($i * 30),
+                'state' => 'charging',
+                'battery_level' => 55.0 + $i * 0.5,
+                'energy_remaining' => 39.0 + $i * 0.3,
+                'charger_power' => 11.0,
+                'rated_range' => 140.0,
+                'latitude' => 39.0,
+                'longitude' => -108.5,
+            ]);
+        }
+
+        $endedAt = $newSessionStart->copy()->addMinutes(7);
+        VehicleState::factory()->create([
+            'vehicle_id' => $vehicle->id,
+            'timestamp' => $endedAt,
+            'state' => 'idle',
+            'battery_level' => 61.0,
+            'energy_remaining' => 42.6,
+            'charger_power' => 0,
+        ]);
+
+        $this->runJob($vehicle->id, $endedAt);
+
+        $this->assertDatabaseCount('charges', 1);
+        $charge = Charge::first();
+        // Must capture only the new session, not bridge across the 30-min gap.
+        $this->assertEquals(
+            $newSessionStart->toDateTimeString(),
+            $charge->started_at->toDateTimeString(),
+        );
+        $this->assertEquals(55.0, $charge->start_battery_level);
+    }
+}

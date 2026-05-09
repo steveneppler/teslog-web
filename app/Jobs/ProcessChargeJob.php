@@ -44,26 +44,37 @@ class ProcessChargeJob implements ShouldQueue
             return;
         }
 
-        // Find the last non-charging state before this charging block
-        $lastNonCharging = VehicleState::where('vehicle_id', $this->vehicleId)
-            ->where('timestamp', '<', $lastCharging->timestamp)
-            ->where('state', '!=', 'charging')
-            ->orderByDesc('timestamp')
-            ->first();
-
-        $lookbackStart = $lastNonCharging?->timestamp ?? $lastCharging->timestamp->copy()->subHours(24);
-
-        // Get all charging states in this session
-        $chargingStates = VehicleState::where('vehicle_id', $this->vehicleId)
+        // Walk back from $lastCharging through the connected charging block.
+        // Brief idle islands (<= 2 minutes between successive charging
+        // timestamps) are bridged so a transient state-detection drop —
+        // e.g. one Enable+power=0 reading 30s into an AC charge — doesn't
+        // truncate the session start. Mirrors the 2-minute gap tolerance in
+        // the batch reprocessor's accumulateSessionIds.
+        $gapMinutes = 2;
+        $candidateStates = VehicleState::where('vehicle_id', $this->vehicleId)
             ->where('state', 'charging')
-            ->where('timestamp', '>', $lookbackStart)
+            ->where('timestamp', '>=', $lastCharging->timestamp->copy()->subHours(24))
             ->where('timestamp', '<=', $this->endedAt)
             ->orderBy('timestamp')
             ->get();
 
-        if ($chargingStates->isEmpty()) {
+        if ($candidateStates->isEmpty()) {
             return;
         }
+
+        // Walk pairs from the end backwards. Session start is the first
+        // charging state whose predecessor is more than 2 minutes earlier
+        // (or the oldest state in the lookback window, if no such gap).
+        $sessionStartIdx = 0;
+        for ($i = $candidateStates->count() - 1; $i > 0; $i--) {
+            $gap = $candidateStates[$i - 1]->timestamp->diffInMinutes($candidateStates[$i]->timestamp);
+            if ($gap > $gapMinutes) {
+                $sessionStartIdx = $i;
+                break;
+            }
+        }
+
+        $chargingStates = $candidateStates->slice($sessionStartIdx)->values();
 
         $first = $chargingStates->first();
         $last = $chargingStates->last();
