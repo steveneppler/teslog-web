@@ -103,6 +103,76 @@ class ProcessChargeJobTest extends TestCase
         $this->assertEquals(60.0, $charge->start_battery_level);
     }
 
+    public function test_small_charge_with_immediate_drive_away_is_not_discarded_as_phantom(): void
+    {
+        // Real low-power charge that adds ~0.4% / ~0.3 kWh, then the user
+        // immediately drives away. The post-session transition state is a
+        // driving state with a slightly DEPLETED battery — using that for
+        // the phantom check would mask the small real charge. The check
+        // must compare first vs last *charging* state instead.
+        $vehicle = Vehicle::factory()->create();
+        $base = Carbon::parse('2026-04-15 12:00:00');
+
+        // Charging block, 4 minutes, small but real net gain
+        VehicleState::factory()->create([
+            'vehicle_id' => $vehicle->id,
+            'timestamp' => $base->copy(),
+            'state' => 'charging',
+            'battery_level' => 60.0,
+            'energy_remaining' => 44.0,
+            'charger_power' => 1.5,
+            'rated_range' => 150.0,
+            'latitude' => 39.0,
+            'longitude' => -108.5,
+        ]);
+        VehicleState::factory()->create([
+            'vehicle_id' => $vehicle->id,
+            'timestamp' => $base->copy()->addMinutes(2),
+            'state' => 'charging',
+            'battery_level' => 60.2,
+            'energy_remaining' => 44.15,
+            'charger_power' => 1.5,
+            'rated_range' => 150.5,
+            'latitude' => 39.0,
+            'longitude' => -108.5,
+        ]);
+        VehicleState::factory()->create([
+            'vehicle_id' => $vehicle->id,
+            'timestamp' => $base->copy()->addMinutes(4),
+            'state' => 'charging',
+            'battery_level' => 60.4,
+            'energy_remaining' => 44.3,
+            'charger_power' => 1.5,
+            'rated_range' => 151.0,
+            'latitude' => 39.0,
+            'longitude' => -108.5,
+        ]);
+
+        // Driving away immediately — battery has already DEPLETED below
+        // start_battery_level. If the phantom check used this state's
+        // values, the session would look flat/negative.
+        $endedAt = $base->copy()->addMinutes(4)->addSeconds(30);
+        VehicleState::factory()->create([
+            'vehicle_id' => $vehicle->id,
+            'timestamp' => $endedAt,
+            'state' => 'driving',
+            'speed' => 25,
+            'gear' => 'D',
+            'battery_level' => 59.8,        // depleted below start (60.0)
+            'energy_remaining' => 43.9,     // depleted below start (44.0)
+            'charger_power' => 0,
+        ]);
+
+        $this->runJob($vehicle->id, $endedAt);
+
+        // Charge is created — the phantom check correctly compared the
+        // first vs last charging state (60.0 -> 60.4), not the depleted
+        // post-drive transition state (59.8).
+        $this->assertDatabaseCount('charges', 1);
+        $charge = Charge::first();
+        $this->assertEquals(60.0, $charge->start_battery_level);
+    }
+
     public function test_gap_just_over_two_minutes_is_not_bridged(): void
     {
         $vehicle = Vehicle::factory()->create();

@@ -485,8 +485,9 @@ class ProcessVehicleStates extends Command
 
         // Discard phantom sessions where the car briefly entered an active
         // charge_state (e.g. 'Enable') during a handshake but no energy was
-        // actually transferred. Both battery_level and energy_remaining must
-        // show <=0 delta — either one going up keeps the session.
+        // actually transferred. Both deltas must be known (non-null) and
+        // <= 0 to discard; if battery_level or energy_remaining is missing
+        // at the boundary, we can't prove phantom and keep the session.
         $batteryDelta = ($first->battery_level !== null && $last->battery_level !== null)
             ? $last->battery_level - $first->battery_level
             : null;
@@ -494,8 +495,8 @@ class ProcessVehicleStates extends Command
             ? $last->energy_remaining - $first->energy_remaining
             : null;
 
-        $batteryFlat = $batteryDelta === null || $batteryDelta <= 0;
-        $energyFlat = $energyDelta === null || $energyDelta <= 0;
+        $batteryFlat = $batteryDelta !== null && $batteryDelta <= 0;
+        $energyFlat = $energyDelta !== null && $energyDelta <= 0;
 
         if ($batteryFlat && $energyFlat) {
             return;

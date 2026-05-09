@@ -178,6 +178,50 @@ class ProcessVehicleStatesTest extends TestCase
         $this->assertDatabaseCount('charges', 0);
     }
 
+    public function test_session_with_missing_telemetry_is_kept_not_discarded_as_phantom(): void
+    {
+        $vehicle = Vehicle::factory()->create();
+
+        // Charging session where battery_level and energy_remaining are
+        // unset on the boundary states. We can't prove energy was or wasn't
+        // transferred, so the phantom filter must NOT discard it — the
+        // duration/preconditioning filters remain the safety net.
+        $base = '2026-04-08 12:00:00';
+        $samples = [
+            [0,   null, null],
+            [60,  null, null],
+            [120, null, null],
+            [180, null, null],
+            [240, null, null],
+            [300, null, null],
+        ];
+
+        foreach ($samples as [$offsetSec, $batt, $energy]) {
+            VehicleState::factory()->create([
+                'vehicle_id' => $vehicle->id,
+                'timestamp' => \Carbon\Carbon::parse($base)->addSeconds($offsetSec),
+                'state' => 'charging',
+                'speed' => 0,
+                'gear' => 'P',
+                'climate_on' => false,
+                'battery_level' => $batt,
+                'energy_remaining' => $energy,
+                'rated_range' => 150,
+                'charger_power' => 7.0,
+                'charger_current' => 30,
+                'charger_voltage' => 240,
+                'charge_state' => 'Charging',
+            ]);
+        }
+
+        $this->artisan('teslog:process-states', [
+            '--vehicle' => $vehicle->id,
+            '--force' => true,
+        ])->assertSuccessful();
+
+        $this->assertDatabaseCount('charges', 1);
+    }
+
     public function test_real_low_power_ac_charge_is_kept(): void
     {
         $vehicle = Vehicle::factory()->create();
