@@ -27,13 +27,18 @@ class StateDetectionService
             return 'charging';
         }
 
-        // Fall back to charge_state-based charging detection. Tesla uses many
-        // values (Charging, Enable, Startup, QualifyLineConfig, etc.) and may
-        // add more, so we blacklist known "not charging" values instead of
-        // allowlisting charging states.
+        // charge_state-based detection. Only the values from Tesla's official
+        // DetailedChargeStateValue proto enum that mean "actively drawing
+        // power" count here: Charging, Starting. Other values like Enable,
+        // ClearFaults, QualifyLineConfig come from a deeper internal state
+        // machine and mean "charging system enabled / requested" — not
+        // "energy flowing." Treating them as charging produces phantom
+        // sessions when the car briefly handshakes with a charger after
+        // parking. Power-based fallbacks below cover real charging that
+        // arrives before charge_state catches up.
         $chargeState = $snapshot['charge_state'] ?? '';
-        $notChargingStates = ['', 'Idle', 'Disconnected', 'Complete', 'NoPower', 'Shutdown', 'Stopped'];
-        if ($chargeState && ! in_array($chargeState, $notChargingStates)) {
+        $activeChargingStates = ['Charging', 'Starting'];
+        if (in_array($chargeState, $activeChargingStates, true)) {
             return 'charging';
         }
 

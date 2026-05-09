@@ -226,9 +226,11 @@ class ProcessVehicleStates extends Command
         &$parkedSince = null,
         bool &$gearStuck = false,
     ): void {
-        // For charging detection, also match states where charger_power > 1 kW
-        // Tesla API sometimes reports state=idle with charge_state values like
-        // QualifyLineConfig, Enable, Startup while actively charging
+        // For charging detection, also match states where charger_power > 1 kW.
+        // Tesla Fleet Telemetry sometimes reports charge_state='Idle' for the
+        // bulk of an active Supercharger session while charger_power stays
+        // >100 kW, so the realtime state may not be 'charging' even though
+        // the car is actively drawing power.
         $isMatch = $state->state === $targetState
             || ($targetState === 'charging' && $state->charger_power && $state->charger_power > 1);
 

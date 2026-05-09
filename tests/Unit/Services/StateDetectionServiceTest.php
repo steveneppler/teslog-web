@@ -39,9 +39,59 @@ class StateDetectionServiceTest extends TestCase
         $this->assertEquals('charging', $state);
     }
 
-    public function test_detect_charging_fleet_telemetry_enable(): void
+    public function test_detect_charging_state_starting(): void
     {
-        $state = $this->service->detectState(['speed' => 0, 'charge_state' => 'Enable'], 'idle');
+        $state = $this->service->detectState(['speed' => 0, 'charge_state' => 'Starting'], 'idle');
+        $this->assertEquals('charging', $state);
+    }
+
+    public function test_charge_state_enable_alone_is_not_charging(): void
+    {
+        // 'Enable' is an internal state-machine value meaning "charging
+        // system enabled / requested" — not "energy flowing." When it
+        // appears with no charger power (handshake after parking), we must
+        // not flag it as charging, otherwise a phantom Charge gets logged.
+        $state = $this->service->detectState([
+            'speed' => 0,
+            'gear' => 'P',
+            'charge_state' => 'Enable',
+            'charger_power' => 0,
+        ], 'idle');
+        $this->assertEquals('idle', $state);
+    }
+
+    public function test_charge_state_clear_faults_alone_is_not_charging(): void
+    {
+        $state = $this->service->detectState([
+            'speed' => 0,
+            'gear' => 'P',
+            'charge_state' => 'ClearFaults',
+            'charger_power' => 0,
+        ], 'idle');
+        $this->assertEquals('idle', $state);
+    }
+
+    public function test_charge_state_qualify_line_config_alone_is_not_charging(): void
+    {
+        $state = $this->service->detectState([
+            'speed' => 0,
+            'gear' => 'P',
+            'charge_state' => 'QualifyLineConfig',
+            'charger_power' => 0,
+        ], 'idle');
+        $this->assertEquals('idle', $state);
+    }
+
+    public function test_charge_state_enable_with_real_power_is_charging(): void
+    {
+        // If 'Enable' appears alongside meaningful charger power, the
+        // power-based rule (>1 kW) still flags charging.
+        $state = $this->service->detectState([
+            'speed' => 0,
+            'gear' => 'P',
+            'charge_state' => 'Enable',
+            'charger_power' => 7,
+        ], 'idle');
         $this->assertEquals('charging', $state);
     }
 
