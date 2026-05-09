@@ -98,9 +98,15 @@ class ProcessChargeJob implements ShouldQueue
             return;
         }
 
-        // The transition state (first non-charging state after the session) often
-        // has the true final battery level, since the last charging state is recorded
-        // moments before the charger reports completion.
+        // The transition state (first non-charging state after the session)
+        // often has the true final battery level, since the last charging
+        // state is recorded moments before the charger reports completion
+        // and the battery can still creep up by ~0.1% during that window.
+        // But if the user unplugs and immediately drives away, the
+        // transition state is a driving state with a slightly *depleted*
+        // battery — without a clamp, that produces an incorrect (negative)
+        // energy_added_kwh. Clamp end values so they never decrease vs
+        // the last charging state's reading.
         $transitionState = VehicleState::where('vehicle_id', $this->vehicleId)
             ->where('timestamp', '>', $last->timestamp)
             ->where('timestamp', '<=', $last->timestamp->copy()->addMinutes(5))
@@ -108,9 +114,9 @@ class ProcessChargeJob implements ShouldQueue
             ->orderBy('timestamp')
             ->first();
 
-        $endBatteryLevel = $transitionState?->battery_level ?? $last->battery_level;
-        $endRatedRange = $transitionState?->rated_range ?? $last->rated_range;
-        $endEnergyRemaining = $transitionState?->energy_remaining ?? $last->energy_remaining;
+        $endBatteryLevel = $this->maxNonNull($transitionState?->battery_level, $last->battery_level);
+        $endRatedRange = $this->maxNonNull($transitionState?->rated_range, $last->rated_range);
+        $endEnergyRemaining = $this->maxNonNull($transitionState?->energy_remaining, $last->energy_remaining);
 
         // Discard phantom sessions where the car briefly entered an active
         // charge_state (e.g. 'Enable') during a handshake but no energy was
@@ -249,6 +255,21 @@ class ProcessChargeJob implements ShouldQueue
         }
 
         ChargeCompleted::dispatch($vehicle, $charge);
+    }
+
+    /**
+     * Return the larger of two values, ignoring nulls. Returns null only
+     * when both inputs are null.
+     */
+    private function maxNonNull(?float $a, ?float $b): ?float
+    {
+        if ($a === null) {
+            return $b;
+        }
+        if ($b === null) {
+            return $a;
+        }
+        return max($a, $b);
     }
 
     /**

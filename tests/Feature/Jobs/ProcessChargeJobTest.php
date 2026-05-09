@@ -167,10 +167,59 @@ class ProcessChargeJobTest extends TestCase
 
         // Charge is created — the phantom check correctly compared the
         // first vs last charging state (60.0 -> 60.4), not the depleted
-        // post-drive transition state (59.8).
+        // post-drive transition state (59.8). End values are clamped to
+        // the last charging reading so a quick drive-away doesn't push
+        // end_battery_level / energy_added_kwh negative.
         $this->assertDatabaseCount('charges', 1);
         $charge = Charge::first();
         $this->assertEquals(60.0, $charge->start_battery_level);
+        $this->assertEquals(60.4, $charge->end_battery_level);
+        $this->assertEqualsWithDelta(0.3, $charge->energy_added_kwh, 0.001);
+    }
+
+    public function test_transition_state_with_higher_battery_is_used_for_end_values(): void
+    {
+        // Original purpose of the transition-state lookup: capture the
+        // post-completion battery creep (battery often rises ~0.1% in the
+        // seconds after the charger stops reporting). The clamp must
+        // preserve this behavior — if the transition state's battery is
+        // HIGHER than the last charging state, use the transition value.
+        $vehicle = Vehicle::factory()->create();
+        $base = Carbon::parse('2026-04-15 14:00:00');
+
+        for ($i = 0; $i < 5; $i++) {
+            VehicleState::factory()->create([
+                'vehicle_id' => $vehicle->id,
+                'timestamp' => $base->copy()->addMinutes($i),
+                'state' => 'charging',
+                'battery_level' => 70.0 + $i * 0.5,
+                'energy_remaining' => 50.0 + $i * 0.3,
+                'charger_power' => 11.0,
+                'rated_range' => 175.0,
+                'latitude' => 39.0,
+                'longitude' => -108.5,
+            ]);
+        }
+        // Last charging state at t+4: 72.0% / 51.2 kWh
+
+        // Transition state (idle, post-completion) shows the creep: 72.1% / 51.3 kWh
+        $endedAt = $base->copy()->addMinutes(4)->addSeconds(30);
+        VehicleState::factory()->create([
+            'vehicle_id' => $vehicle->id,
+            'timestamp' => $endedAt,
+            'state' => 'idle',
+            'battery_level' => 72.1,
+            'energy_remaining' => 51.3,
+            'charger_power' => 0,
+        ]);
+
+        $this->runJob($vehicle->id, $endedAt);
+
+        $this->assertDatabaseCount('charges', 1);
+        $charge = Charge::first();
+        // End values come from the transition state (the higher of the two)
+        $this->assertEquals(72.1, $charge->end_battery_level);
+        $this->assertEqualsWithDelta(1.3, $charge->energy_added_kwh, 0.001);
     }
 
     public function test_gap_just_over_two_minutes_is_not_bridged(): void
