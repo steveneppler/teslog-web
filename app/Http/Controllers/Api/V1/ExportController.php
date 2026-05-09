@@ -212,8 +212,9 @@ class ExportController extends Controller
             $vehicleIds = $userVehicleIds;
         }
 
-        $fromUtc = $request->filled('from') ? Carbon::parse($request->input('from'))->utc() : null;
-        $toUtc = $request->filled('to') ? Carbon::parse($request->input('to'))->utc() : null;
+        $tz = $user->userTz();
+        $fromUtc = $request->filled('from') ? Carbon::parse($request->input('from'), $tz)->utc() : null;
+        $toUtc = $request->filled('to') ? Carbon::parse($request->input('to'), $tz)->utc() : null;
         $stateFilter = $request->input('state') ?: null;
         $fieldFilter = $request->input('field') ?: null;
 

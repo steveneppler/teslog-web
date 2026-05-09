@@ -278,4 +278,26 @@ class ExportTest extends TestCase
     {
         $this->get('/export/debug')->assertRedirect(route('login'));
     }
+
+    public function test_export_debug_parses_naive_datetime_in_user_timezone(): void
+    {
+        // EST user picks "12:00–13:00" on the page; that wall-clock window
+        // corresponds to 17:00–18:00 UTC. The stored row at 17:30 UTC must be
+        // included; the row at 12:30 UTC (= 07:30 EST) must not be.
+        $user = User::factory()->create(['debug_mode' => true, 'timezone' => 'America/New_York']);
+        $vehicle = Vehicle::factory()->create(['user_id' => $user->id]);
+
+        VehicleState::factory()->create(['vehicle_id' => $vehicle->id, 'timestamp' => '2025-01-15 17:30:00']);
+        VehicleState::factory()->create(['vehicle_id' => $vehicle->id, 'timestamp' => '2025-01-15 12:30:00']);
+
+        $response = $this->actingAs($user)->get('/export/debug?'.http_build_query([
+            'vehicle_id' => $vehicle->id,
+            'from' => '2025-01-15T12:00',
+            'to' => '2025-01-15T13:00',
+        ]));
+
+        $payload = json_decode($response->streamedContent(), true);
+        $this->assertCount(1, $payload['processed_states']);
+        $this->assertSame('2025-01-15T17:30:00.000000Z', $payload['processed_states'][0]['timestamp']);
+    }
 }

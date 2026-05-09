@@ -88,9 +88,14 @@ class Debug extends Component
 
     private function vehicleIds(Collection $userVehicles): Collection
     {
-        return $this->vehicleFilter
-            ? collect([(int) $this->vehicleFilter])
-            : $userVehicles->pluck('id');
+        if ($this->vehicleFilter) {
+            $requestedId = (int) $this->vehicleFilter;
+            if ($userVehicles->contains('id', $requestedId)) {
+                return collect([$requestedId]);
+            }
+        }
+
+        return $userVehicles->pluck('id');
     }
 
     private function fromUtc(string $tz): ?\Carbon\Carbon
