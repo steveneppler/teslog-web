@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\V1;
 use App\Http\Controllers\Controller;
 use App\Models\Charge;
 use App\Models\Drive;
+use App\Models\TelemetryRaw;
 use App\Models\VehicleState;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -189,6 +190,110 @@ class ExportController extends Controller
         }, 200, [
             'Content-Type' => 'text/csv',
             'Content-Disposition' => 'attachment; filename="teslog-charges.csv"',
+        ]);
+    }
+
+    /**
+     * Stream the records currently visible on the Debug page (both tables) as JSON
+     * so users can attach the file when reporting an issue.
+     */
+    public function debug(Request $request): StreamedResponse
+    {
+        $user = $request->user();
+        abort_unless($user->debug_mode, 403);
+
+        $userVehicleIds = $user->vehicles()->pluck('id');
+
+        $vehicle = null;
+        if ($request->filled('vehicle_id')) {
+            $vehicle = $user->vehicles()->findOrFail((int) $request->input('vehicle_id'));
+            $vehicleIds = collect([$vehicle->id]);
+        } else {
+            $vehicleIds = $userVehicleIds;
+        }
+
+        $fromUtc = $request->filled('from') ? Carbon::parse($request->input('from'))->utc() : null;
+        $toUtc = $request->filled('to') ? Carbon::parse($request->input('to'))->utc() : null;
+        $stateFilter = $request->input('state') ?: null;
+        $fieldFilter = $request->input('field') ?: null;
+
+        $vinSlug = $vehicle ? ($vehicle->vin ?: $vehicle->name) : 'all';
+        $vinSlug = preg_replace('/[^A-Za-z0-9_-]+/', '', (string) $vinSlug) ?: 'all';
+        $filename = sprintf('teslog-debug-%s-%s.json', $vinSlug, now()->format('Ymd-His'));
+
+        return response()->streamDownload(function () use ($vehicle, $vehicleIds, $fromUtc, $toUtc, $stateFilter, $fieldFilter) {
+            echo '{';
+            echo '"exported_at":'.json_encode(now()->toIso8601String()).',';
+            echo '"app_version":'.json_encode(config('app.version')).',';
+            echo '"filters":'.json_encode([
+                'vehicle_id' => $vehicle?->id,
+                'from' => $fromUtc?->toIso8601String(),
+                'to' => $toUtc?->toIso8601String(),
+                'state' => $stateFilter,
+                'field' => $fieldFilter,
+            ]).',';
+            echo '"vehicle":'.json_encode($vehicle ? [
+                'id' => $vehicle->id,
+                'vin' => $vehicle->vin,
+                'name' => $vehicle->name,
+                'model' => $vehicle->model,
+            ] : null).',';
+
+            echo '"processed_states":[';
+            $first = true;
+            $statesQuery = VehicleState::whereIn('vehicle_id', $vehicleIds)->orderBy('id');
+            if ($fromUtc) {
+                $statesQuery->where('timestamp', '>=', $fromUtc);
+            }
+            if ($toUtc) {
+                $statesQuery->where('timestamp', '<=', $toUtc);
+            }
+            if ($stateFilter) {
+                $statesQuery->where('state', $stateFilter);
+            }
+            if ($fieldFilter) {
+                $statesQuery->where(function ($q) use ($fieldFilter) {
+                    $q->where('charge_state', 'like', "%{$fieldFilter}%")
+                        ->orWhere('state', 'like', "%{$fieldFilter}%")
+                        ->orWhere('gear', 'like', "%{$fieldFilter}%")
+                        ->orWhere('software_version', 'like', "%{$fieldFilter}%");
+                });
+            }
+            $statesQuery->chunkById(1000, function ($states) use (&$first) {
+                foreach ($states as $state) {
+                    echo $first ? '' : ',';
+                    echo json_encode($state->toArray());
+                    $first = false;
+                }
+                flush();
+            });
+            echo '],';
+
+            echo '"raw_telemetry":[';
+            $first = true;
+            $rawQuery = TelemetryRaw::whereIn('vehicle_id', $vehicleIds)->orderBy('id');
+            if ($fromUtc) {
+                $rawQuery->whereRaw("strftime('%Y-%m-%d %H:%M:%S', timestamp) >= ?", [$fromUtc->format('Y-m-d H:i:s')]);
+            }
+            if ($toUtc) {
+                $rawQuery->whereRaw("strftime('%Y-%m-%d %H:%M:%S', timestamp) <= ?", [$toUtc->format('Y-m-d H:i:s')]);
+            }
+            if ($fieldFilter) {
+                $rawQuery->where('field_name', 'like', "%{$fieldFilter}%");
+            }
+            $rawQuery->chunkById(1000, function ($rows) use (&$first) {
+                foreach ($rows as $row) {
+                    echo $first ? '' : ',';
+                    echo json_encode($row->toArray());
+                    $first = false;
+                }
+                flush();
+            });
+            echo ']';
+
+            echo '}';
+        }, $filename, [
+            'Content-Type' => 'application/json',
         ]);
     }
 }

@@ -42,6 +42,7 @@ Route::middleware('auth')->group(function () {
     Route::get('export/raw', [\App\Http\Controllers\Api\V1\ExportController::class, 'raw'])->name('web.export.raw');
     Route::get('export/drives', [\App\Http\Controllers\Api\V1\ExportController::class, 'drives'])->name('web.export.drives');
     Route::get('export/charges', [\App\Http\Controllers\Api\V1\ExportController::class, 'charges'])->name('web.export.charges');
+    Route::get('export/debug', [\App\Http\Controllers\Api\V1\ExportController::class, 'debug'])->name('web.export.debug');
     Route::get('import', fn () => view('pages.import'))->name('import');
 
     // Database backup download (streamed, bypasses Livewire)

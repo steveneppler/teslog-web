@@ -59,6 +59,21 @@
                 </div>
             </div>
         </div>
+
+        <div class="mt-3 flex items-center justify-end">
+            <a href="{{ route('web.export.debug', array_filter([
+                    'vehicle_id' => $vehicleFilter ?: null,
+                    'from' => $from ?: null,
+                    'to' => $to ?: null,
+                    'state' => $stateFilter ?: null,
+                    'field' => $fieldFilter ?: null,
+                ])) }}"
+                class="inline-flex items-center gap-2 rounded-lg border border-border-input bg-surface-alt px-3 py-2 text-xs font-medium text-text-primary hover:bg-elevated"
+                title="Download both tables for the current filters as JSON. Attach the file when reporting an issue.">
+                <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3"/></svg>
+                Export JSON ({{ number_format($processedExportCount) }} states + {{ number_format($rawExportCount) }} raw)
+            </a>
+        </div>
     </div>
 
     @if($tab === 'processed')
