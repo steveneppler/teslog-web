@@ -7,6 +7,7 @@ use App\Models\ChargePoint;
 use App\Models\Drive;
 use App\Models\DrivePoint;
 use App\Models\Vehicle;
+use App\Models\VehicleState;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -132,6 +133,92 @@ class ProcessVehicleStatesTest extends TestCase
 
         $this->assertDatabaseMissing('charges', ['id' => $charge->id]);
         $this->assertDatabaseMissing('drives', ['id' => $drive->id]);
+    }
+
+    public function test_phantom_charge_session_with_no_energy_transfer_is_discarded(): void
+    {
+        $vehicle = Vehicle::factory()->create();
+
+        // Reproduces the pattern from the debug exports: car finishes a drive,
+        // parks, then briefly enters charge_state='Enable' for 2-3 minutes
+        // with low power but no actual energy transfer (battery and
+        // energy_remaining stay flat).
+        $base = '2026-04-06 22:50:57';
+        $samples = [
+            [0, 0.3, 1.0, 227.6],
+            [30, 0.7, 3.0, 238.4],
+            [60, 0.5, 2.0, 238.4],
+            [90, 0.6, 3.0, 238.6],
+            [120, 0.6, 3.0, 237.4],
+        ];
+
+        foreach ($samples as [$offsetSec, $power, $current, $voltage]) {
+            VehicleState::factory()->create([
+                'vehicle_id' => $vehicle->id,
+                'timestamp' => \Carbon\Carbon::parse($base)->addSeconds($offsetSec),
+                'state' => 'charging',
+                'speed' => 0,
+                'gear' => 'P',
+                'climate_on' => false,
+                'battery_level' => 51.95,
+                'energy_remaining' => 39.06,
+                'rated_range' => 146.9,
+                'charger_power' => $power,
+                'charger_current' => $current,
+                'charger_voltage' => $voltage,
+                'charge_state' => 'Enable',
+            ]);
+        }
+
+        $this->artisan('teslog:process-states', [
+            '--vehicle' => $vehicle->id,
+            '--force' => true,
+        ])->assertSuccessful();
+
+        $this->assertDatabaseCount('charges', 0);
+    }
+
+    public function test_real_low_power_ac_charge_is_kept(): void
+    {
+        $vehicle = Vehicle::factory()->create();
+
+        // Slow AC charge: 5 minutes, battery rises from 50 -> 51.5%, energy
+        // rises from 35 -> 36 kWh. Same low max power as a phantom (~1 kW) but
+        // with actual energy transferred — must be kept.
+        $base = '2026-04-06 22:00:00';
+        $samples = [
+            [0,   50.00, 35.00],
+            [60,  50.30, 35.20],
+            [120, 50.60, 35.40],
+            [180, 50.90, 35.60],
+            [240, 51.20, 35.80],
+            [300, 51.50, 36.00],
+        ];
+
+        foreach ($samples as [$offsetSec, $batt, $energy]) {
+            VehicleState::factory()->create([
+                'vehicle_id' => $vehicle->id,
+                'timestamp' => \Carbon\Carbon::parse($base)->addSeconds($offsetSec),
+                'state' => 'charging',
+                'speed' => 0,
+                'gear' => 'P',
+                'climate_on' => false,
+                'battery_level' => $batt,
+                'energy_remaining' => $energy,
+                'rated_range' => 150,
+                'charger_power' => 1.2,
+                'charger_current' => 5,
+                'charger_voltage' => 240,
+                'charge_state' => 'Charging',
+            ]);
+        }
+
+        $this->artisan('teslog:process-states', [
+            '--vehicle' => $vehicle->id,
+            '--force' => true,
+        ])->assertSuccessful();
+
+        $this->assertDatabaseCount('charges', 1);
     }
 
     public function test_force_does_not_touch_other_vehicles(): void

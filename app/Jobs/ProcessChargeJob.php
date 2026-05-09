@@ -101,6 +101,24 @@ class ProcessChargeJob implements ShouldQueue
         $endRatedRange = $transitionState?->rated_range ?? $last->rated_range;
         $endEnergyRemaining = $transitionState?->energy_remaining ?? $last->energy_remaining;
 
+        // Discard phantom sessions where the car briefly entered an active
+        // charge_state (e.g. 'Enable') during a handshake but no energy was
+        // actually transferred. Both battery_level and energy_remaining must
+        // show <=0 delta — either one going up keeps the session.
+        $batteryDelta = ($first->battery_level !== null && $endBatteryLevel !== null)
+            ? $endBatteryLevel - $first->battery_level
+            : null;
+        $energyDelta = ($first->energy_remaining !== null && $endEnergyRemaining !== null)
+            ? $endEnergyRemaining - $first->energy_remaining
+            : null;
+
+        $batteryFlat = $batteryDelta === null || $batteryDelta <= 0;
+        $energyFlat = $energyDelta === null || $energyDelta <= 0;
+
+        if ($batteryFlat && $energyFlat) {
+            return;
+        }
+
         // Check if there's a recent charge we should extend instead of creating a new one
         // (handles brief charging blips after the main charge completes)
         $recentCharge = Charge::where('vehicle_id', $this->vehicleId)

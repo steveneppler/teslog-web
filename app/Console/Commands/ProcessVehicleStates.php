@@ -481,6 +481,24 @@ class ProcessVehicleStates extends Command
             return;
         }
 
+        // Discard phantom sessions where the car briefly entered an active
+        // charge_state (e.g. 'Enable') during a handshake but no energy was
+        // actually transferred. Both battery_level and energy_remaining must
+        // show <=0 delta — either one going up keeps the session.
+        $batteryDelta = ($first->battery_level !== null && $last->battery_level !== null)
+            ? $last->battery_level - $first->battery_level
+            : null;
+        $energyDelta = ($first->energy_remaining !== null && $last->energy_remaining !== null)
+            ? $last->energy_remaining - $first->energy_remaining
+            : null;
+
+        $batteryFlat = $batteryDelta === null || $batteryDelta <= 0;
+        $energyFlat = $energyDelta === null || $energyDelta <= 0;
+
+        if ($batteryFlat && $energyFlat) {
+            return;
+        }
+
         // Determine charge type
         $chargeType = ChargeType::Ac;
         if ($maxPower && $maxPower > 50) {
