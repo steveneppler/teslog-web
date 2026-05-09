@@ -4,6 +4,8 @@ namespace App\Livewire;
 
 use App\Models\TelemetryRaw;
 use App\Models\VehicleState;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\Url;
 use Livewire\Component;
@@ -84,6 +86,70 @@ class Debug extends Component
         $this->resetPage();
     }
 
+    private function vehicleIds(Collection $userVehicles): Collection
+    {
+        return $this->vehicleFilter
+            ? collect([(int) $this->vehicleFilter])
+            : $userVehicles->pluck('id');
+    }
+
+    private function fromUtc(string $tz): ?\Carbon\Carbon
+    {
+        return $this->from ? \Carbon\Carbon::parse($this->from, $tz)->utc() : null;
+    }
+
+    private function toUtc(string $tz): ?\Carbon\Carbon
+    {
+        return $this->to ? \Carbon\Carbon::parse($this->to, $tz)->utc() : null;
+    }
+
+    private function processedQuery(Collection $vehicleIds, ?\Carbon\Carbon $fromUtc, ?\Carbon\Carbon $toUtc): Builder
+    {
+        $query = VehicleState::whereIn('vehicle_id', $vehicleIds)
+            ->orderByDesc('timestamp');
+
+        if ($fromUtc) {
+            $query->where('timestamp', '>=', $fromUtc);
+        }
+        if ($toUtc) {
+            $query->where('timestamp', '<=', $toUtc);
+        }
+        if ($this->stateFilter) {
+            $query->where('state', $this->stateFilter);
+        }
+        if ($this->fieldFilter) {
+            $search = $this->fieldFilter;
+            $query->where(function ($q) use ($search) {
+                $q->where('charge_state', 'like', "%{$search}%")
+                  ->orWhere('state', 'like', "%{$search}%")
+                  ->orWhere('gear', 'like', "%{$search}%")
+                  ->orWhere('software_version', 'like', "%{$search}%");
+            });
+        }
+
+        return $query;
+    }
+
+    private function rawQuery(Collection $vehicleIds, ?\Carbon\Carbon $fromUtc, ?\Carbon\Carbon $toUtc): Builder
+    {
+        $query = TelemetryRaw::whereIn('vehicle_id', $vehicleIds)
+            ->orderByDesc('timestamp');
+
+        // telemetry_raw timestamps may be stored as ISO 8601 (with T and Z),
+        // so use strftime to normalize for comparison in SQLite
+        if ($fromUtc) {
+            $query->whereRaw("strftime('%Y-%m-%d %H:%M:%S', timestamp) >= ?", [$fromUtc->format('Y-m-d H:i:s')]);
+        }
+        if ($toUtc) {
+            $query->whereRaw("strftime('%Y-%m-%d %H:%M:%S', timestamp) <= ?", [$toUtc->format('Y-m-d H:i:s')]);
+        }
+        if ($this->fieldFilter) {
+            $query->where('field_name', 'like', "%{$this->fieldFilter}%");
+        }
+
+        return $query;
+    }
+
     public function render()
     {
         abort_unless(Auth::user()->debug_mode, 403);
@@ -92,12 +158,9 @@ class Debug extends Component
         $tz = $user->userTz();
         $vehicles = $user->vehicles()->get();
 
-        $vehicleIds = $this->vehicleFilter
-            ? collect([(int) $this->vehicleFilter])
-            : $vehicles->pluck('id');
-
-        $fromUtc = $this->from ? \Carbon\Carbon::parse($this->from, $tz)->utc() : null;
-        $toUtc = $this->to ? \Carbon\Carbon::parse($this->to, $tz)->utc() : null;
+        $vehicleIds = $this->vehicleIds($vehicles);
+        $fromUtc = $this->fromUtc($tz);
+        $toUtc = $this->toUtc($tz);
 
         $records = null;
         $rawRecords = null;
@@ -105,31 +168,9 @@ class Debug extends Component
         $states = collect();
 
         if ($this->tab === 'processed') {
-            $query = VehicleState::whereIn('vehicle_id', $vehicleIds)
-                ->orderByDesc('timestamp');
-
-            if ($fromUtc) {
-                $query->where('timestamp', '>=', $fromUtc);
-            }
-            if ($toUtc) {
-                $query->where('timestamp', '<=', $toUtc);
-            }
-            if ($this->stateFilter) {
-                $query->where('state', $this->stateFilter);
-            }
-            if ($this->fieldFilter) {
-                $search = $this->fieldFilter;
-                $query->where(function ($q) use ($search) {
-                    $q->where('charge_state', 'like', "%{$search}%")
-                      ->orWhere('state', 'like', "%{$search}%")
-                      ->orWhere('gear', 'like', "%{$search}%")
-                      ->orWhere('software_version', 'like', "%{$search}%");
-                });
-            }
-
             $states = collect(['driving', 'charging', 'idle', 'sleeping', 'offline'])->sort()->values();
 
-            $records = $query->paginate(50);
+            $records = $this->processedQuery($vehicleIds, $fromUtc, $toUtc)->paginate(50);
 
             // Load raw telemetry for expanded row
             if ($this->showRawFor) {
@@ -144,23 +185,11 @@ class Debug extends Component
                 }
             }
         } else {
-            $query = TelemetryRaw::whereIn('vehicle_id', $vehicleIds)
-                ->orderByDesc('timestamp');
-
-            // telemetry_raw timestamps may be stored as ISO 8601 (with T and Z),
-            // so use strftime to normalize for comparison in SQLite
-            if ($fromUtc) {
-                $query->whereRaw("strftime('%Y-%m-%d %H:%M:%S', timestamp) >= ?", [$fromUtc->format('Y-m-d H:i:s')]);
-            }
-            if ($toUtc) {
-                $query->whereRaw("strftime('%Y-%m-%d %H:%M:%S', timestamp) <= ?", [$toUtc->format('Y-m-d H:i:s')]);
-            }
-            if ($this->fieldFilter) {
-                $query->where('field_name', 'like', "%{$this->fieldFilter}%");
-            }
-
-            $rawRecords = $query->paginate(100);
+            $rawRecords = $this->rawQuery($vehicleIds, $fromUtc, $toUtc)->paginate(100);
         }
+
+        $processedExportCount = $this->processedQuery($vehicleIds, $fromUtc, $toUtc)->count();
+        $rawExportCount = $this->rawQuery($vehicleIds, $fromUtc, $toUtc)->count();
 
         return view('livewire.debug', [
             'records' => $records,
@@ -169,6 +198,8 @@ class Debug extends Component
             'vehicles' => $vehicles,
             'states' => $states,
             'userTz' => $tz,
+            'processedExportCount' => $processedExportCount,
+            'rawExportCount' => $rawExportCount,
         ]);
     }
 }
