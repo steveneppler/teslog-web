@@ -17,6 +17,18 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Application Version
+    |--------------------------------------------------------------------------
+    |
+    | TODO: wire this up via the release process (e.g. APP_VERSION env var
+    | set in CI/Docker from the git tag or commit SHA). Until then,
+    | config('app.version') resolves to null and downstream consumers (such
+    | as the Debug page JSON export envelope) will emit null for the version.
+    |
+    */
+
+    /*
+    |--------------------------------------------------------------------------
     | Application Environment
     |--------------------------------------------------------------------------
     |
