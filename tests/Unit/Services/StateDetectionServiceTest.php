@@ -45,6 +45,21 @@ class StateDetectionServiceTest extends TestCase
         $this->assertEquals('charging', $state);
     }
 
+    public function test_detect_charging_state_startup(): void
+    {
+        // Real telemetry sends 'Startup' (not 'Starting') at the very start
+        // of every AC home charge, often with charger_power=0 for the first
+        // 1-2 readings before power ramps. Must be flagged as charging so
+        // the exact charge start time is preserved.
+        $state = $this->service->detectState([
+            'speed' => 0,
+            'gear' => 'P',
+            'charge_state' => 'Startup',
+            'charger_power' => 0,
+        ], 'idle');
+        $this->assertEquals('charging', $state);
+    }
+
     public function test_charge_state_enable_alone_is_not_charging(): void
     {
         // 'Enable' is an internal state-machine value meaning "charging

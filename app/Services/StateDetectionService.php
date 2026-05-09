@@ -27,17 +27,25 @@ class StateDetectionService
             return 'charging';
         }
 
-        // charge_state-based detection. Only the values from Tesla's official
-        // DetailedChargeStateValue proto enum that mean "actively drawing
-        // power" count here: Charging, Starting. Other values like Enable,
-        // ClearFaults, QualifyLineConfig come from a deeper internal state
-        // machine and mean "charging system enabled / requested" — not
-        // "energy flowing." Treating them as charging produces phantom
-        // sessions when the car briefly handshakes with a charger after
-        // parking. Power-based fallbacks below cover real charging that
-        // arrives before charge_state catches up.
+        // charge_state-based detection. Allowlist the values that mean
+        // "actively drawing power" or "preparing to draw power immediately":
+        //   - Charging / Starting: from Tesla's official DetailedChargeStateValue
+        //     proto enum (the public surface).
+        //   - Startup: the deeper-CAN-bus equivalent of Starting that real
+        //     telemetry actually sends at the start of every AC home charge,
+        //     usually with charger_power=0 for the first 1-2 readings before
+        //     power ramps up. Including it preserves the exact charge start
+        //     time on real charges.
+        //
+        // Other values like Enable, ClearFaults, QualifyLineConfig also come
+        // from the internal state machine but only mean "charging system
+        // enabled / requested" — not "energy flowing." Treating those as
+        // charging produces phantom sessions when the car briefly handshakes
+        // with a charger after parking (see fix in this file's git history).
+        // Power-based fallbacks below cover real charging that arrives before
+        // charge_state catches up.
         $chargeState = $snapshot['charge_state'] ?? '';
-        $activeChargingStates = ['Charging', 'Starting'];
+        $activeChargingStates = ['Charging', 'Starting', 'Startup'];
         if (in_array($chargeState, $activeChargingStates, true)) {
             return 'charging';
         }
