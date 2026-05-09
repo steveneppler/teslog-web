@@ -161,7 +161,7 @@ class ProcessChargeJobTest extends TestCase
 
         $this->assertDatabaseCount('charges', 1);
         $charge = Charge::first();
-        // Must capture only the new session, not bridge across the 30-min gap.
+        // Must capture only the new session, not bridge across the 3-minute gap.
         $this->assertEquals(
             $newSessionStart->toDateTimeString(),
             $charge->started_at->toDateTimeString(),
