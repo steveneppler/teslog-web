@@ -72,11 +72,11 @@ class ProcessImportData implements ShouldQueue
                 'charges' => $service->importCharges($fullPath, $this->vehicleId, $this->timezone),
             };
 
-            // For non-raw imports (no progress callback), add the result counts
-            if ($this->importType !== 'raw') {
-                $this->totalImported += $result['imported'];
-                $this->totalSkipped += $result['skipped'];
-            }
+            // Reconcile totals from the importer's return value. The progress
+            // callback only fires when raw imports flush a 500-row batch, so
+            // files smaller than that would otherwise leave the counters at 0.
+            $this->totalImported = $importedBefore + $result['imported'];
+            $this->totalSkipped = $skippedBefore + $result['skipped'];
 
             foreach ($result['errors'] as $error) {
                 $this->errors[] = $fileName . ': ' . $error;
