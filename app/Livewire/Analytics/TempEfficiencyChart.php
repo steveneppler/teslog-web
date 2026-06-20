@@ -25,7 +25,7 @@ class TempEfficiencyChart extends Component
             ->whereNotNull('outside_temp_avg')
             ->selectRaw('ROUND(outside_temp_avg) as temp_c, AVG(efficiency) as avg_efficiency, COUNT(*) as cnt')
             ->groupByRaw('ROUND(outside_temp_avg)')
-            ->having('cnt', '>=', 3)
+            ->havingRaw('COUNT(*) >= 3')
             ->orderBy('temp_c')
             ->get()
             ->map(fn ($row) => [

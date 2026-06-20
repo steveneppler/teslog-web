@@ -2,6 +2,7 @@
 
 namespace App\Jobs;
 
+use App\Helpers\DatabaseHelper;
 use App\Models\Charge;
 use App\Models\Drive;
 use App\Models\VehicleState;
@@ -101,7 +102,7 @@ class ProcessImportData implements ShouldQueue
 
                 // Pre-fetch months that already have drives to avoid per-iteration queries
                 $processedMonths = Drive::where('vehicle_id', $this->vehicleId)
-                    ->selectRaw("strftime('%Y-%m', started_at) as month")
+                    ->selectRaw(DatabaseHelper::formatDateTime('started_at', 'year-month') . " as month")
                     ->distinct()->pluck('month')->flip()->all();
 
                 while ($cursor < $end) {

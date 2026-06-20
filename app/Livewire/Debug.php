@@ -2,6 +2,7 @@
 
 namespace App\Livewire;
 
+use App\Helpers\DatabaseHelper;
 use App\Models\TelemetryRaw;
 use App\Models\VehicleState;
 use Illuminate\Database\Eloquent\Builder;
@@ -126,9 +127,9 @@ class Debug extends Component
             $search = $this->fieldFilter;
             $query->where(function ($q) use ($search) {
                 $q->where('charge_state', 'like', "%{$search}%")
-                  ->orWhere('state', 'like', "%{$search}%")
-                  ->orWhere('gear', 'like', "%{$search}%")
-                  ->orWhere('software_version', 'like', "%{$search}%");
+                    ->orWhere('state', 'like', "%{$search}%")
+                    ->orWhere('gear', 'like', "%{$search}%")
+                    ->orWhere('software_version', 'like', "%{$search}%");
             });
         }
 
@@ -141,12 +142,12 @@ class Debug extends Component
             ->orderByDesc('timestamp');
 
         // telemetry_raw timestamps may be stored as ISO 8601 (with T and Z),
-        // so use strftime to normalize for comparison in SQLite
+        // so use DatabaseHelper::formatDateTime to normalize for comparison in database
         if ($fromUtc) {
-            $query->whereRaw("strftime('%Y-%m-%d %H:%M:%S', timestamp) >= ?", [$fromUtc->format('Y-m-d H:i:s')]);
+            $query->whereRaw(DatabaseHelper::formatDateTime('timestamp', 'datetime') . " >= ?", [$fromUtc->format('Y-m-d H:i:s')]);
         }
         if ($toUtc) {
-            $query->whereRaw("strftime('%Y-%m-%d %H:%M:%S', timestamp) <= ?", [$toUtc->format('Y-m-d H:i:s')]);
+            $query->whereRaw(DatabaseHelper::formatDateTime('timestamp', 'datetime') . " <= ?", [$toUtc->format('Y-m-d H:i:s')]);
         }
         if ($this->fieldFilter) {
             $query->where('field_name', 'like', "%{$this->fieldFilter}%");
@@ -182,8 +183,8 @@ class Debug extends Component
                 $state = VehicleState::find($this->showRawFor);
                 if ($state && $vehicleIds->contains($state->vehicle_id)) {
                     $expandedRaw = TelemetryRaw::where('vehicle_id', $state->vehicle_id)
-                        ->whereRaw("strftime('%Y-%m-%d %H:%M:%S', timestamp) >= ?", [$state->timestamp->copy()->subSeconds(30)->format('Y-m-d H:i:s')])
-                        ->whereRaw("strftime('%Y-%m-%d %H:%M:%S', timestamp) <= ?", [$state->timestamp->copy()->addSeconds(5)->format('Y-m-d H:i:s')])
+                        ->whereRaw(DatabaseHelper::formatDateTime('timestamp', 'datetime') . " >= ?", [$state->timestamp->copy()->subSeconds(30)->format('Y-m-d H:i:s')])
+                        ->whereRaw(DatabaseHelper::formatDateTime('timestamp', 'datetime') . " <= ?", [$state->timestamp->copy()->addSeconds(5)->format('Y-m-d H:i:s')])
                         ->orderBy('timestamp')
                         ->orderBy('field_name')
                         ->get();
