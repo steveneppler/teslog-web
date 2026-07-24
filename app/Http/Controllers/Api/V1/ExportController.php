@@ -53,19 +53,9 @@ class ExportController extends Controller
             $su = $user->speedUnit();
             $eu = $user->efficiencyUnit();
             fputcsv($handle, [
-                'Date',
-                'Vehicle',
-                'From',
-                'To',
-                "Distance ({$du})",
-                'Energy (kWh)',
-                "Efficiency ({$eu})",
-                'Start Battery %',
-                'End Battery %',
-                "Max Speed ({$su})",
-                "Avg Speed ({$su})",
-                'Tag',
-                'Notes',
+                'Date', 'Vehicle', 'From', 'To', "Distance ({$du})", 'Energy (kWh)',
+                "Efficiency ({$eu})", 'Start Battery %', 'End Battery %',
+                "Max Speed ({$su})", "Avg Speed ({$su})", 'Tag', 'Notes',
             ]);
 
             $query->chunk(500, function ($drives) use ($handle, $user) {
@@ -115,30 +105,11 @@ class ExportController extends Controller
         $filename = sprintf('teslog-%s-%s.csv', $vehicle->vin ?? $vehicle->name, $request->month);
 
         $headers = [
-            'Date',
-            'battery_level',
-            'rated_battery_range_km',
-            'ideal_battery_range_km',
-            'speed',
-            'power',
-            'odometer',
-            'latitude',
-            'longitude',
-            'heading',
-            'elevation',
-            'inside_temp',
-            'outside_temp',
-            'locked',
-            'sentry_mode',
-            'is_climate_on',
-            'Shift State',
-            'charger_power',
-            'charger_voltage',
-            'charger_actual_current',
-            'charge_limit_soc',
-            'charging_state',
-            'usable_battery_level',
-            'car_version',
+            'Date', 'battery_level', 'rated_battery_range_km', 'ideal_battery_range_km',
+            'speed', 'power', 'odometer', 'latitude', 'longitude', 'heading', 'elevation',
+            'inside_temp', 'outside_temp', 'locked', 'sentry_mode', 'is_climate_on',
+            'Shift State', 'charger_power', 'charger_voltage', 'charger_actual_current',
+            'charge_limit_soc', 'charging_state', 'usable_battery_level', 'car_version',
             'state',
         ];
 
@@ -206,17 +177,9 @@ class ExportController extends Controller
         return new StreamedResponse(function () use ($query) {
             $handle = fopen('php://output', 'w');
             fputcsv($handle, [
-                'Date',
-                'Vehicle',
-                'Location',
-                'Type',
-                'Energy Added (kWh)',
-                'Cost',
-                'Start Battery %',
-                'End Battery %',
-                'Max Power (kW)',
-                'Tag',
-                'Notes',
+                'Date', 'Vehicle', 'Location', 'Type', 'Energy Added (kWh)',
+                'Cost', 'Start Battery %', 'End Battery %', 'Max Power (kW)',
+                'Tag', 'Notes',
             ]);
 
             $query->chunk(500, function ($charges) use ($handle) {
@@ -275,21 +238,21 @@ class ExportController extends Controller
 
         return response()->streamDownload(function () use ($vehicle, $vehicleIds, $fromUtc, $toUtc, $stateFilter, $fieldFilter) {
             echo '{';
-            echo '"exported_at":' . json_encode(now()->toIso8601String()) . ',';
-            echo '"app_version":' . json_encode(config('app.version')) . ',';
-            echo '"filters":' . json_encode([
+            echo '"exported_at":'.json_encode(now()->toIso8601String()).',';
+            echo '"app_version":'.json_encode(config('app.version')).',';
+            echo '"filters":'.json_encode([
                 'vehicle_id' => $vehicle?->id,
                 'from' => $fromUtc?->toIso8601String(),
                 'to' => $toUtc?->toIso8601String(),
                 'state' => $stateFilter,
                 'field' => $fieldFilter,
-            ]) . ',';
-            echo '"vehicle":' . json_encode($vehicle ? [
+            ]).',';
+            echo '"vehicle":'.json_encode($vehicle ? [
                 'id' => $vehicle->id,
                 'vin' => $vehicle->vin,
                 'name' => $vehicle->name,
                 'model' => $vehicle->model,
-            ] : null) . ',';
+            ] : null).',';
 
             echo '"processed_states":[';
             $first = true;
@@ -325,10 +288,10 @@ class ExportController extends Controller
             $first = true;
             $rawQuery = TelemetryRaw::whereIn('vehicle_id', $vehicleIds)->orderBy('id');
             if ($fromUtc) {
-                $rawQuery->whereRaw(DatabaseHelper::formatDateTime('timestamp', 'datetime') . ' >= ?', [$fromUtc->format('Y-m-d H:i:s')]);
+                $rawQuery->whereRaw(DatabaseHelper::formatDateTime('timestamp', 'datetime').' >= ?', [$fromUtc->format('Y-m-d H:i:s')]);
             }
             if ($toUtc) {
-                $rawQuery->whereRaw(DatabaseHelper::formatDateTime('timestamp', 'datetime') . ' <= ?', [$toUtc->format('Y-m-d H:i:s')]);
+                $rawQuery->whereRaw(DatabaseHelper::formatDateTime('timestamp', 'datetime').' <= ?', [$toUtc->format('Y-m-d H:i:s')]);
             }
             if ($fieldFilter) {
                 $rawQuery->where('field_name', 'like', "%{$fieldFilter}%");

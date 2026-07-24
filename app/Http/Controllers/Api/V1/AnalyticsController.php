@@ -97,7 +97,7 @@ class AnalyticsController extends Controller
             ->where('started_at', '>=', now()->subDays($days))
             ->whereNotNull('cost')
             ->select(
-                DB::raw(DatabaseHelper::formatDateTime('started_at', 'year-month') . ' as month'),
+                DB::raw(DatabaseHelper::formatDateTime('started_at', 'year-month').' as month'),
                 DB::raw('sum(cost) as total_cost'),
             )
             ->groupBy('month')

@@ -55,12 +55,10 @@ class Dashboard extends Component
         }
 
         foreach ($vehicles as $vehicle) {
-            if (
-                $vehicle->latestState
+            if ($vehicle->latestState
                 && $vehicle->latestState->timestamp->lt(now()->subHours(6))
-                && ! in_array($vehicle->latestState->state, ['sleeping', 'idle'])
-            ) {
-                $alreadyWarned = collect($warnings)->contains(fn($w) => ($w['type'] ?? '') === 'stale_data' && ($w['vehicle'] ?? '') === ($vehicle->name ?: $vehicle->vin));
+                && ! in_array($vehicle->latestState->state, ['sleeping', 'idle'])) {
+                $alreadyWarned = collect($warnings)->contains(fn ($w) => ($w['type'] ?? '') === 'stale_data' && ($w['vehicle'] ?? '') === ($vehicle->name ?: $vehicle->vin));
                 if (! $alreadyWarned) {
                     $warnings[] = [
                         'type' => 'stale_data',
@@ -104,11 +102,11 @@ class Dashboard extends Component
         $sparklinePoints = VehicleState::whereIn('vehicle_id', $vehicleIds)
             ->where('timestamp', '>=', $weekStart)
             ->whereNotNull('battery_level')
-            ->selectRaw(DatabaseHelper::formatDateTime('timestamp', 'hour') . " as hour, AVG(battery_level) as avg_bat, MIN(timestamp) as first_ts")
+            ->selectRaw(DatabaseHelper::formatDateTime('timestamp', 'hour').' as hour, AVG(battery_level) as avg_bat, MIN(timestamp) as first_ts')
             ->groupByRaw(DatabaseHelper::formatDateTime('timestamp', 'hour'))
             ->orderByRaw("hour")
             ->get()
-            ->map(fn($row) => [
+            ->map(fn ($row) => [
                 'ts' => Carbon::parse($row->first_ts)->timestamp * 1000,
                 'bat' => round($row->avg_bat, 1),
             ])
@@ -116,8 +114,8 @@ class Dashboard extends Component
             ->all();
 
         // Activity chart — miles driven and range added per day (rolling 7 days, 2 queries)
-        $drivesByDay = $weekDrives->groupBy(fn($d) => $d->started_at->tz($userTz)->format('Y-m-d'));
-        $chargesByDay = $weekCharges->groupBy(fn($c) => $c->started_at->tz($userTz)->format('Y-m-d'));
+        $drivesByDay = $weekDrives->groupBy(fn ($d) => $d->started_at->tz($userTz)->format('Y-m-d'));
+        $chargesByDay = $weekCharges->groupBy(fn ($c) => $c->started_at->tz($userTz)->format('Y-m-d'));
 
         $activityDays = [];
         $dayCursor = Carbon::now($userTz)->subDays(6)->startOfDay();
@@ -228,4 +226,5 @@ class Dashboard extends Component
             }
         }
     }
+
 }
