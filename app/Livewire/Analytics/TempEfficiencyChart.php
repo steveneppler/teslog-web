@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Analytics;
 
+use App\Livewire\Concerns\ResolvesVehicleFilter;
 use App\Models\Drive;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\Reactive;
@@ -9,15 +10,15 @@ use Livewire\Component;
 
 class TempEfficiencyChart extends Component
 {
+    use ResolvesVehicleFilter;
+
     #[Reactive]
     public string $vehicleFilter = '';
 
     public function render()
     {
         $user = Auth::user();
-        $vehicleIds = $this->vehicleFilter
-            ? collect([(int) $this->vehicleFilter])
-            : $user->vehicles()->pluck('id');
+        $vehicleIds = $this->getVehicleIds();
 
         $tempEffData = Drive::whereIn('vehicle_id', $vehicleIds)
             ->where('started_at', '>=', now()->subDays(365))

@@ -240,7 +240,7 @@
                     fillOpacity: 0.7,
                     weight: 2,
                 });
-                var tooltip = '<strong>' + m.label + '</strong><br>' +
+                var tooltip = '<strong>' + window.escapeHtml(m.label) + '</strong><br>' +
                     m.count + (m.count === 1 ? ' charge' : ' charges') + ' · ' +
                     m.energy + ' kWh';
                 marker.bindTooltip(tooltip);

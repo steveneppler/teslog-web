@@ -218,7 +218,7 @@
         var bounds = [];
         places.forEach(function(p) {
             L.circleMarker([p.lat, p.lng], { radius: 6, color: '#ef4444', fillColor: '#ef4444', fillOpacity: 1, weight: 2 })
-                .bindPopup('<b>' + p.name + '</b><br>' + p.radius + 'm radius')
+                .bindPopup('<b>' + window.escapeHtml(p.name) + '</b><br>' + p.radius + 'm radius')
                 .addTo(map);
             L.circle([p.lat, p.lng], { radius: p.radius, color: '#ef4444', fillColor: '#ef4444', fillOpacity: 0.1, weight: 1 }).addTo(map);
             bounds.push([p.lat, p.lng]);

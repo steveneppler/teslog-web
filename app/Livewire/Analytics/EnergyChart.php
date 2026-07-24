@@ -2,15 +2,17 @@
 
 namespace App\Livewire\Analytics;
 
+use App\Livewire\Concerns\ResolvesVehicleFilter;
 use App\Models\Charge;
 use App\Models\Drive;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Livewire\Attributes\Reactive;
 use Livewire\Component;
 
 class EnergyChart extends Component
 {
+    use ResolvesVehicleFilter;
+
     #[Reactive]
     public string $vehicleFilter = '';
 
@@ -23,10 +25,7 @@ class EnergyChart extends Component
 
     public function render()
     {
-        $user = Auth::user();
-        $vehicleIds = $this->vehicleFilter
-            ? collect([(int) $this->vehicleFilter])
-            : $user->vehicles()->pluck('id');
+        $vehicleIds = $this->getVehicleIds();
 
         $energyUsed = Drive::whereIn('vehicle_id', $vehicleIds)
             ->where('started_at', '>=', now()->subDays($this->energyDays))

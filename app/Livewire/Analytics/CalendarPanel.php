@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Analytics;
 
+use App\Livewire\Concerns\ResolvesVehicleFilter;
 use App\Models\Charge;
 use App\Models\Drive;
 use Carbon\Carbon;
@@ -12,6 +13,8 @@ use Livewire\Component;
 
 class CalendarPanel extends Component
 {
+    use ResolvesVehicleFilter;
+
     #[Reactive]
     public string $vehicleFilter = '';
 
@@ -42,9 +45,7 @@ class CalendarPanel extends Component
     public function render()
     {
         $user = Auth::user();
-        $vehicleIds = $this->vehicleFilter
-            ? collect([(int) $this->vehicleFilter])
-            : $user->vehicles()->pluck('id');
+        $vehicleIds = $this->getVehicleIds();
 
         $startOfMonth = $this->calendarMonth . '-01';
         $endOfMonth = date('Y-m-t', strtotime($startOfMonth));

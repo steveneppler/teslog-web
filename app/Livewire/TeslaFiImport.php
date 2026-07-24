@@ -147,6 +147,14 @@ class TeslaFiImport extends Component
             return;
         }
 
+        // Bind the (public, client-settable) key to the current user so a tampered
+        // property can't read another user's import status.
+        if (! str_starts_with($this->processingKey, 'import-'.Auth::id().'-')) {
+            $this->processingKey = '';
+
+            return;
+        }
+
         $status = Cache::get($this->processingKey);
 
         if (! $status) {

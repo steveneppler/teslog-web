@@ -132,6 +132,13 @@
             localStorage.setItem('theme', @json(auth()->user()->theme ?? ''));
         @endauth
 
+        // Escape user-controlled strings before injecting into map popup/tooltip HTML
+        window.escapeHtml = function (s) {
+            var d = document.createElement('div');
+            d.textContent = s == null ? '' : String(s);
+            return d.innerHTML;
+        };
+
         // Map tile URL helper for theme-aware maps
         window.getMapTileUrl = function() {
             var isDark = document.documentElement.classList.contains('dark') ||

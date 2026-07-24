@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Analytics;
 
+use App\Livewire\Concerns\ResolvesVehicleFilter;
 use App\Models\Drive;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -10,6 +11,8 @@ use Livewire\Component;
 
 class EfficiencyChart extends Component
 {
+    use ResolvesVehicleFilter;
+
     #[Reactive]
     public string $vehicleFilter = '';
 
@@ -23,9 +26,7 @@ class EfficiencyChart extends Component
     public function render()
     {
         $user = Auth::user();
-        $vehicleIds = $this->vehicleFilter
-            ? collect([(int) $this->vehicleFilter])
-            : $user->vehicles()->pluck('id');
+        $vehicleIds = $this->getVehicleIds();
 
         $efficiencyData = Drive::whereIn('vehicle_id', $vehicleIds)
             ->where('started_at', '>=', now()->subDays($this->efficiencyDays))

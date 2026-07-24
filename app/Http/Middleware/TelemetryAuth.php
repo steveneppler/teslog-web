@@ -12,7 +12,7 @@ class TelemetryAuth
     {
         $secret = config('teslog.telemetry_secret');
 
-        if (! $secret || $request->header('X-Telemetry-Secret') !== $secret) {
+        if (! $secret || ! hash_equals($secret, (string) $request->header('X-Telemetry-Secret'))) {
             return response()->json(['error' => 'Unauthorized'], 401);
         }
 

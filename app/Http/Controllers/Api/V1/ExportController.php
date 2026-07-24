@@ -13,6 +13,19 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class ExportController extends Controller
 {
+    /**
+     * Neutralize spreadsheet formula injection: a cell beginning with
+     * = + - @ (or tab/CR/LF) is treated as a formula by Excel/Sheets.
+     */
+    private function csvSafe($value)
+    {
+        if (is_string($value) && $value !== '' && str_contains("=+-@\t\r\n", $value[0])) {
+            return "'".$value;
+        }
+
+        return $value;
+    }
+
     public function drives(Request $request): StreamedResponse
     {
         $vehicleIds = $request->user()->vehicles()->pluck('id');
@@ -48,9 +61,9 @@ class ExportController extends Controller
                 foreach ($drives as $drive) {
                     fputcsv($handle, [
                         $drive->started_at->toIso8601String(),
-                        $drive->vehicle->name,
-                        $drive->start_address,
-                        $drive->end_address,
+                        $this->csvSafe($drive->vehicle->name),
+                        $this->csvSafe($drive->start_address),
+                        $this->csvSafe($drive->end_address),
                         $user->convertDistance($drive->distance),
                         $drive->energy_used_kwh,
                         $user->convertEfficiency($drive->efficiency),
@@ -58,8 +71,8 @@ class ExportController extends Controller
                         $drive->end_battery_level,
                         $user->convertSpeed($drive->max_speed),
                         $user->convertSpeed($drive->avg_speed),
-                        $drive->tag,
-                        $drive->notes,
+                        $this->csvSafe($drive->tag),
+                        $this->csvSafe($drive->notes),
                     ]);
                 }
             });
@@ -126,15 +139,15 @@ class ExportController extends Controller
                             $state->locked !== null ? ($state->locked ? '1' : '0') : '',
                             $state->sentry_mode !== null ? ($state->sentry_mode ? '1' : '0') : '',
                             $state->climate_on !== null ? ($state->climate_on ? '1' : '0') : '',
-                            $state->gear,
+                            $this->csvSafe($state->gear),
                             $state->charger_power,
                             $state->charger_voltage,
                             $state->charger_current,
                             $state->charge_limit_soc,
-                            $state->charge_state,
+                            $this->csvSafe($state->charge_state),
                             $state->energy_remaining,
-                            $state->software_version,
-                            $state->state,
+                            $this->csvSafe($state->software_version),
+                            $this->csvSafe($state->state),
                         ]);
                     }
                 });
@@ -172,16 +185,16 @@ class ExportController extends Controller
                 foreach ($charges as $charge) {
                     fputcsv($handle, [
                         $charge->started_at->toIso8601String(),
-                        $charge->vehicle->name,
-                        $charge->place?->name ?? $charge->address,
+                        $this->csvSafe($charge->vehicle->name),
+                        $this->csvSafe($charge->place?->name ?? $charge->address),
                         $charge->charge_type?->value,
                         $charge->energy_added_kwh,
                         $charge->cost,
                         $charge->start_battery_level,
                         $charge->end_battery_level,
                         $charge->max_charger_power,
-                        $charge->tag,
-                        $charge->notes,
+                        $this->csvSafe($charge->tag),
+                        $this->csvSafe($charge->notes),
                     ]);
                 }
             });
