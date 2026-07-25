@@ -2,6 +2,7 @@
 
 namespace App\Livewire;
 
+use App\Helpers\DatabaseHelper;
 use App\Models\BatteryHealth;
 use App\Models\Charge;
 use App\Models\Drive;
@@ -101,8 +102,8 @@ class Dashboard extends Component
         $sparklinePoints = VehicleState::whereIn('vehicle_id', $vehicleIds)
             ->where('timestamp', '>=', $weekStart)
             ->whereNotNull('battery_level')
-            ->selectRaw("strftime('%Y-%m-%d %H:00:00', timestamp) as hour, AVG(battery_level) as avg_bat, MIN(timestamp) as first_ts")
-            ->groupByRaw("strftime('%Y-%m-%d %H:00:00', timestamp)")
+            ->selectRaw(DatabaseHelper::formatDateTime('timestamp', 'hour').' as hour, AVG(battery_level) as avg_bat, MIN(timestamp) as first_ts')
+            ->groupByRaw(DatabaseHelper::formatDateTime('timestamp', 'hour'))
             ->orderByRaw("hour")
             ->get()
             ->map(fn ($row) => [

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Helpers\DatabaseHelper;
 use App\Http\Controllers\Controller;
 use App\Models\Charge;
 use App\Models\Drive;
@@ -287,10 +288,10 @@ class ExportController extends Controller
             $first = true;
             $rawQuery = TelemetryRaw::whereIn('vehicle_id', $vehicleIds)->orderBy('id');
             if ($fromUtc) {
-                $rawQuery->whereRaw("strftime('%Y-%m-%d %H:%M:%S', timestamp) >= ?", [$fromUtc->format('Y-m-d H:i:s')]);
+                $rawQuery->whereRaw(DatabaseHelper::formatDateTime('timestamp', 'datetime').' >= ?', [$fromUtc->format('Y-m-d H:i:s')]);
             }
             if ($toUtc) {
-                $rawQuery->whereRaw("strftime('%Y-%m-%d %H:%M:%S', timestamp) <= ?", [$toUtc->format('Y-m-d H:i:s')]);
+                $rawQuery->whereRaw(DatabaseHelper::formatDateTime('timestamp', 'datetime').' <= ?', [$toUtc->format('Y-m-d H:i:s')]);
             }
             if ($fieldFilter) {
                 $rawQuery->where('field_name', 'like', "%{$fieldFilter}%");

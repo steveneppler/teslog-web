@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Enums\ChargeType;
+use App\Helpers\DatabaseHelper;
 use App\Models\Charge;
 use App\Models\ChargePoint;
 use App\Models\Drive;
@@ -545,7 +546,7 @@ class ProcessVehicleStates extends Command
                         $last->timestamp->copy()->addMinutes(30),
                     ]);
                 })
-                ->orderByRaw('ABS(JULIANDAY(timestamp) - JULIANDAY(?))', [$first->timestamp])
+                ->orderByRaw(DatabaseHelper::absTimeDiffSeconds('timestamp'), [$first->timestamp])
                 ->first();
             if ($nearbyState) {
                 $latitude = $nearbyState->latitude;

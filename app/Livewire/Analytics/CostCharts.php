@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Analytics;
 
+use App\Helpers\DatabaseHelper;
 use App\Livewire\Concerns\ResolvesVehicleFilter;
 use App\Models\Charge;
 use Illuminate\Support\Facades\Auth;
@@ -44,7 +45,7 @@ class CostCharts extends Component
             ->where('started_at', '>=', now()->subDays($this->costDays))
             ->whereNotNull('cost')
             ->select(
-                DB::raw("strftime('%Y-%m', started_at) as month"),
+                DB::raw(DatabaseHelper::formatDateTime('started_at', 'year-month').' as month'),
                 DB::raw('sum(cost) as total_cost'),
             )
             ->groupBy('month')
