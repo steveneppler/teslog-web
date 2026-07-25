@@ -39,4 +39,20 @@ class DatabaseHelper
             default => throw new InvalidArgumentException("Unsupported date format [{$format}]."),
         };
     }
+
+    /**
+     * Build a driver-appropriate SQL expression for the absolute distance, in
+     * seconds, between a timestamp column and a bound timestamp parameter.
+     *
+     * SQLite's JULIANDAY() exists on no other driver. Useful for ordering rows
+     * by proximity to a given moment. As above, $column must be trusted.
+     */
+    public static function absTimeDiffSeconds(string $column, string $placeholder = '?'): string
+    {
+        return match (DB::connection()->getDriverName()) {
+            'pgsql' => "ABS(EXTRACT(EPOCH FROM ({$column} - CAST({$placeholder} AS timestamp))))",
+            'sqlite' => "ABS(JULIANDAY({$column}) - JULIANDAY({$placeholder})) * 86400",
+            default => "ABS(TIMESTAMPDIFF(SECOND, {$column}, {$placeholder}))",
+        };
+    }
 }
