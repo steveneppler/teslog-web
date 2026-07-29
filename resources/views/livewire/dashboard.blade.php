@@ -198,6 +198,66 @@
             @endforeach
         </div>
 
+        {{-- Map of the day --}}
+        <div class="mt-6 rounded-xl border border-border-default bg-surface p-6">
+            <div class="mb-4 flex flex-wrap items-center justify-between gap-2">
+                <div>
+                    <h3 class="text-sm font-semibold uppercase tracking-wider text-text-muted">Map of the Day</h3>
+                    <p class="mt-0.5 text-xs text-text-subtle">{{ $dayLabel }}</p>
+                </div>
+                <a href="{{ route('web.drives') }}" class="text-xs text-text-subtle hover:text-text-secondary">View all drives</a>
+            </div>
+
+            @if($dayStats['drives'] > 0 || $dayStats['charges'] > 0)
+                <div class="mb-3 flex flex-wrap gap-x-6 gap-y-2 text-sm">
+                    <div>
+                        <span class="text-text-subtle">Drives:</span>
+                        <span class="font-medium text-text-secondary">{{ $dayStats['drives'] }}</span>
+                    </div>
+                    <div>
+                        <span class="text-text-subtle">Distance:</span>
+                        <span class="font-medium text-text-secondary">{{ number_format(auth()->user()->convertDistance($dayStats['distance']), 1) }} {{ auth()->user()->distanceUnit() }}</span>
+                    </div>
+                    <div>
+                        <span class="text-text-subtle">Time:</span>
+                        <span class="font-medium text-text-secondary">{{ $dayStats['duration_hours'] > 0 ? $dayStats['duration_hours'] . 'h ' : '' }}{{ $dayStats['duration_minutes'] }}m</span>
+                    </div>
+                    @if($dayStats['energy'])
+                        <div>
+                            <span class="text-text-subtle">Energy:</span>
+                            <span class="font-medium text-text-secondary">{{ number_format($dayStats['energy'], 1) }} kWh</span>
+                        </div>
+                    @endif
+                    @if($dayStats['efficiency'])
+                        <div>
+                            <span class="text-text-subtle">Efficiency:</span>
+                            <span class="font-medium text-text-secondary">{{ number_format(auth()->user()->convertEfficiency($dayStats['efficiency']), 0) }} {{ auth()->user()->efficiencyUnit() }}</span>
+                        </div>
+                    @endif
+                    @if($dayStats['charges'] > 0)
+                        <div>
+                            <span class="text-text-subtle">Charges:</span>
+                            <span class="font-medium text-text-secondary">{{ $dayStats['charges'] }}</span>
+                            @if($dayStats['energy_added'])
+                                <span class="text-text-subtle">&middot; {{ number_format($dayStats['energy_added'], 1) }} kWh added</span>
+                            @endif
+                        </div>
+                    @endif
+                </div>
+            @endif
+
+            @if($dayHasMapData)
+                <div wire:ignore>
+                    <div id="dashboard-day-map" style="height: 20rem; width: 100%; background: var(--theme-surface); border-radius: 0.5rem;"></div>
+                </div>
+                @unless($dayHasRoutes)
+                    <p class="mt-3 text-xs text-text-subtle">No drives yet today &mdash; showing the last known location.</p>
+                @endunless
+            @else
+                <p class="text-sm text-text-subtle">No location data for today yet.</p>
+            @endif
+        </div>
+
         {{-- Weekly stats --}}
         <div class="mt-6 rounded-xl border border-border-default bg-surface p-6">
             <h3 class="mb-4 text-sm font-semibold uppercase tracking-wider text-text-muted">Last 7 Days</h3>
@@ -377,6 +437,95 @@
                         });
                 @endforeach
             }
+
+            function initDayMap(routes, charges, locations) {
+                if (!window.L) return;
+
+                var el = document.getElementById('dashboard-day-map');
+                if (!el) return;
+
+                // The element is recreated when the card toggles between states — drop a stale instance
+                if (window.__dashDayMap) {
+                    var stale = true;
+                    try { stale = window.__dashDayMap.getContainer() !== el; } catch (e) {}
+                    if (stale) {
+                        try { window.__dashDayMap.remove(); } catch (e) {}
+                        window.__dashDayMap = null;
+                        window.__dashDayLayer = null;
+                        window.__dashDayBounds = null;
+                    }
+                }
+
+                if (!window.__dashDayMap) {
+                    window.__dashDayMap = L.map(el, { attributionControl: false, zoomControl: true });
+                    L.tileLayer(window.getMapTileUrl(), { maxZoom: 19 }).addTo(window.__dashDayMap);
+                    window.registerMap(window.__dashDayMap);
+                    window.setupMapScrollZoom(window.__dashDayMap);
+                    window.__dashDayLayer = L.layerGroup().addTo(window.__dashDayMap);
+                } else {
+                    window.__dashDayLayer.clearLayers();
+                }
+
+                var map = window.__dashDayMap;
+                var layer = window.__dashDayLayer;
+                var bounds = [];
+
+                (routes || []).forEach(function (route) {
+                    if (!route.coords || route.coords.length < 2) return;
+                    var latlngs = route.coords.map(function (c) { return [c[0], c[1]]; });
+                    var tooltip = '<strong>' + window.escapeHtml(route.label) + '</strong><br>' +
+                        window.escapeHtml(route.from) + ' → ' + window.escapeHtml(route.to) + '<br>' +
+                        window.escapeHtml(route.distance);
+
+                    var line = L.polyline(latlngs, { color: route.color, weight: 3, opacity: 0.85 });
+                    line.bindTooltip(tooltip);
+                    line.on('click', function () { window.location = route.url; });
+                    line.addTo(layer);
+
+                    L.circleMarker(latlngs[0], { radius: 5, color: route.color, fillColor: route.color, fillOpacity: 1, weight: 0 })
+                        .bindTooltip(window.escapeHtml(route.label) + ' start').addTo(layer);
+                    L.circleMarker(latlngs[latlngs.length - 1], { radius: 5, color: route.color, fillColor: route.color, fillOpacity: 1, weight: 0 })
+                        .bindTooltip(window.escapeHtml(route.label) + ' end').addTo(layer);
+
+                    bounds = bounds.concat(latlngs);
+                });
+
+                (charges || []).forEach(function (c) {
+                    var color = c.type === 'supercharger' ? '#ef4444' : (c.type === 'dc' ? '#3b82f6' : '#22c55e');
+                    L.circleMarker([c.lat, c.lng], { radius: 7, color: color, fillColor: color, fillOpacity: 0.85, weight: 2 })
+                        .bindTooltip('<strong>' + window.escapeHtml(c.label) + '</strong><br>' +
+                            window.escapeHtml(c.time) + ' · ' + c.energy + ' kWh')
+                        .addTo(layer);
+                    bounds.push([c.lat, c.lng]);
+                });
+
+                (locations || []).forEach(function (v) {
+                    L.circleMarker([v.lat, v.lng], { radius: 6, color: '#ffffff', fillColor: '#6366f1', fillOpacity: 1, weight: 2 })
+                        .bindTooltip('<strong>' + window.escapeHtml(v.label) + '</strong><br>' +
+                            window.escapeHtml(v.state) + (v.battery ? ' · ' + window.escapeHtml(v.battery) : '') +
+                            '<br>Updated ' + window.escapeHtml(v.updated))
+                        .addTo(layer);
+                    bounds.push([v.lat, v.lng]);
+                });
+
+                if (bounds.length === 0) {
+                    map.setView([39.8283, -98.5795], 4);
+                    return;
+                }
+
+                // Only refit when the day's data actually changed, so polling doesn't fight the user panning
+                var signature = JSON.stringify(bounds);
+                if (signature !== window.__dashDayBounds) {
+                    window.__dashDayBounds = signature;
+                    map.fitBounds(L.latLngBounds(bounds).pad(0.1));
+                }
+
+                setTimeout(function () { map.invalidateSize(); }, 200);
+            }
+
+            $wire.on('day-map-updated', (params) => {
+                setTimeout(function () { initDayMap(params.routes, params.charges, params.locations); }, 100);
+            });
 
             $wire.on('sparkline-data', ({ points }) => {
                 const canvas = document.getElementById('battery-sparkline');

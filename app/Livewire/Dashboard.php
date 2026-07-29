@@ -2,6 +2,7 @@
 
 namespace App\Livewire;
 
+use App\Livewire\Concerns\SamplesDrivePoints;
 use App\Models\BatteryHealth;
 use App\Models\Charge;
 use App\Models\Drive;
@@ -14,6 +15,8 @@ use Livewire\Component;
 
 class Dashboard extends Component
 {
+    use SamplesDrivePoints;
+
     public function render()
     {
         $user = Auth::user();
@@ -152,6 +155,91 @@ class Dashboard extends Component
             ->unique('vehicle_id')
             ->keyBy('vehicle_id');
 
+        // Map of the day — today's drives, charge stops and last known vehicle locations
+        $dayStart = Carbon::now($userTz)->startOfDay();
+
+        $todayDrives = $weekDrives
+            ->filter(fn ($d) => $d->started_at->tz($userTz)->isSameDay($dayStart))
+            ->sortBy('started_at')
+            ->values();
+        $todayDrives->load('startPlace', 'endPlace');
+
+        $todayCharges = $weekCharges
+            ->filter(fn ($c) => $c->started_at->tz($userTz)->isSameDay($dayStart) && $c->latitude && $c->longitude)
+            ->sortBy('started_at')
+            ->values();
+        $todayCharges->load('place');
+
+        $routeColors = ['#ef4444', '#3b82f6', '#22c55e', '#f59e0b', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316'];
+        $dayPoints = $this->loadSampledPoints($todayDrives->pluck('id'), 5000);
+
+        $dayRoutes = [];
+        foreach ($todayDrives as $i => $drive) {
+            $pts = $dayPoints[$drive->id] ?? collect();
+            if ($pts->count() < 2) {
+                continue;
+            }
+
+            $dayRoutes[] = [
+                'coords' => $pts->map(fn ($p) => [$p->latitude, $p->longitude])->values()->all(),
+                'color' => $routeColors[$i % count($routeColors)],
+                'label' => $drive->started_at->tz($userTz)->format('g:ia'),
+                'from' => $drive->startPlace?->name ?? $drive->start_address ?? 'Unknown',
+                'to' => $drive->endPlace?->name ?? $drive->end_address ?? 'Unknown',
+                'distance' => round($user->convertDistance($drive->distance ?? 0), 1) . ' ' . $user->distanceUnit(),
+                'url' => route('web.drives.show', $drive),
+            ];
+        }
+
+        $dayChargeMarkers = $todayCharges->map(fn ($c) => [
+            'lat' => $c->latitude,
+            'lng' => $c->longitude,
+            'label' => $c->place?->name ?? $c->address ?? 'Charge',
+            'time' => $c->started_at->tz($userTz)->format('g:ia'),
+            'energy' => round($c->energy_added_kwh ?? 0, 1),
+            'type' => $c->charge_type?->value,
+        ])->all();
+
+        // Last known position per vehicle — the map still shows something on a day with no drives
+        $dayVehicleMarkers = $vehicles
+            ->filter(fn ($v) => $v->latestState && $v->latestState->latitude && $v->latestState->longitude)
+            ->map(fn ($v) => [
+                'lat' => $v->latestState->latitude,
+                'lng' => $v->latestState->longitude,
+                'label' => $v->name ?: $v->vin,
+                'battery' => $v->latestState->battery_level !== null ? round($v->latestState->battery_level) . '%' : null,
+                'state' => ucfirst($v->latestState->state),
+                'updated' => $v->latestState->timestamp->tz($userTz)->format('M j, g:ia'),
+            ])
+            ->values()
+            ->all();
+
+        $dayDistance = $todayDrives->sum('distance');
+        $dayEnergy = $todayDrives->sum('energy_used_kwh');
+        $daySeconds = $todayDrives->sum(fn ($d) => $d->started_at && $d->ended_at
+            ? $d->started_at->diffInSeconds($d->ended_at)
+            : 0);
+
+        $dayStats = [
+            'drives' => $todayDrives->count(),
+            'distance' => $dayDistance,
+            'energy' => $dayEnergy,
+            'duration_hours' => (int) floor($daySeconds / 3600),
+            'duration_minutes' => (int) floor(($daySeconds % 3600) / 60),
+            'efficiency' => $dayDistance > 0 && $dayEnergy > 0 ? ($dayEnergy * 1000) / $dayDistance : null,
+            'charges' => $todayCharges->count(),
+            'energy_added' => $todayCharges->sum('energy_added_kwh'),
+        ];
+
+        if ($vehicles->isNotEmpty()) {
+            $this->dispatch(
+                'day-map-updated',
+                routes: $dayRoutes,
+                charges: $dayChargeMarkers,
+                locations: $dayVehicleMarkers,
+            );
+        }
+
         if (count($sparklinePoints) > 1 && ! $this->sparklineInitialized) {
             $this->sparklineInitialized = true;
             $this->dispatch('sparkline-data', points: $sparklinePoints);
@@ -169,6 +257,10 @@ class Dashboard extends Component
             'activityDays' => $activityDays,
             'userTz' => $userTz,
             'vehicleDegradation' => $vehicleDegradation,
+            'dayStats' => $dayStats,
+            'dayLabel' => $dayStart->format('l, M j'),
+            'dayHasMapData' => count($dayRoutes) > 0 || count($dayChargeMarkers) > 0 || count($dayVehicleMarkers) > 0,
+            'dayHasRoutes' => count($dayRoutes) > 0,
         ]);
     }
 
