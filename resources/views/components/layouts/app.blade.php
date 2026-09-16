@@ -140,7 +140,7 @@
         };
 
         // Map tile URL helper for theme-aware maps
-        window.__mapTiles = @json(config('teslog.map_tiles'));
+        window.__mapTiles = @json(\App\Support\MapTiles::forUser(auth()->user()));
         window.getMapTileUrl = function() {
             var isDark = document.documentElement.classList.contains('dark') ||
                 (!document.documentElement.classList.contains('light') &&

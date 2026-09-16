@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\MapTiles;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
@@ -26,11 +27,14 @@ class User extends Authenticatable
         'currency',
         'theme',
         'debug_mode',
+        'map_provider',
+        'carto_api_key',
     ];
 
     protected $hidden = [
         'password',
         'remember_token',
+        'carto_api_key',
     ];
 
     protected function casts(): array
@@ -39,6 +43,7 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'debug_mode' => 'boolean',
+            'carto_api_key' => 'encrypted',
         ];
     }
 
@@ -161,6 +166,15 @@ class User extends Authenticatable
     public function userTz(): string
     {
         return $this->timezone ?? 'UTC';
+    }
+
+    /**
+     * The basemap tiles this user sees — their own provider choice, or the
+     * env-configured default until they pick one on the settings page.
+     */
+    public function mapTiles(): array
+    {
+        return MapTiles::forUser($this);
     }
 
     public function vehicles(): HasMany

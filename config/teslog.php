@@ -1,59 +1,10 @@
 <?php
 
-// Map basemap tiles. CARTO basemaps now require an API key
-// (https://carto.com/basemaps/apikey), so the keyless Esri gray canvas is the
-// default. Set TESLOG_MAP_PROVIDER, or just set TESLOG_CARTO_API_KEY to use CARTO.
-// A missing, blank or null-like value counts as unset — Laravel reads a bare
-// `KEY=`, `KEY=null` and `KEY=(null)` all as "no value". Anything else is taken
-// literally, including `false` and `0`, so an unrecognized provider name falls
-// back to Esri rather than triggering automatic selection.
-$mapEnv = static function (string $key): ?string {
-    $value = env($key);
+use App\Support\MapTiles;
 
-    if ($value === null) {
-        return null;
-    }
-
-    // env() coerces `KEY=false` to a boolean, which must still read as the
-    // literal (unrecognized) provider name rather than as an unset value.
-    $value = is_bool($value) ? ($value ? 'true' : 'false') : trim((string) $value);
-
-    return $value === '' ? null : $value;
-};
-
-$cartoApiKey = $mapEnv('TESLOG_CARTO_API_KEY');
-$mapProvider = $mapEnv('TESLOG_MAP_PROVIDER') ?? ($cartoApiKey !== null ? 'carto' : 'esri');
-
-$mapProviders = [
-    // Keyless. Tiles are only served up to z16, so Leaflet upscales beyond that.
-    'esri' => [
-        'light' => 'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}',
-        'dark' => 'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}',
-        'subdomains' => 'abc',
-        'max_zoom' => 19,
-        'max_native_zoom' => 16,
-        'attribution' => 'Tiles &copy; <a href="https://www.esri.com/" target="_blank" rel="noopener">Esri</a> &mdash; Esri, HERE, Garmin, &copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors',
-    ],
-    // Requires TESLOG_CARTO_API_KEY.
-    'carto' => [
-        'light' => 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png?api_key='.rawurlencode((string) $cartoApiKey),
-        'dark' => 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png?api_key='.rawurlencode((string) $cartoApiKey),
-        'subdomains' => 'abcd',
-        'max_zoom' => 20,
-        'max_native_zoom' => 20,
-        'attribution' => '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions" target="_blank" rel="noopener">CARTO</a>',
-    ],
-    // Keyless, but has no dark variant.
-    'osm' => [
-        'light' => 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-        'dark' => 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-        'subdomains' => 'abc',
-        'max_zoom' => 19,
-        'max_native_zoom' => 19,
-        'attribution' => '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors',
-    ],
-];
-
+// Basemap tiles. The catalog and the provider selection rules live in
+// App\Support\MapTiles; these env vars are only the default for users who have
+// not picked a provider on the settings page.
 return [
     'telemetry_secret' => env('TESLOG_TELEMETRY_SECRET'),
     'horizon_enabled' => env('TESLOG_HORIZON_ENABLED', true),
@@ -81,11 +32,7 @@ return [
         'commands_per_vehicle' => env('TESLOG_COMMAND_RATE_LIMIT', 10),
     ],
 
-    // Selecting CARTO without a key would emit `?api_key=` and reproduce the very
-    // failure this config exists to avoid, so treat it as unconfigured.
-    'map_tiles' => $mapProvider === 'carto' && $cartoApiKey === null
-        ? $mapProviders['esri']
-        : $mapProviders[$mapProvider] ?? $mapProviders['esri'],
+    'map_tiles' => MapTiles::resolve(env('TESLOG_MAP_PROVIDER'), env('TESLOG_CARTO_API_KEY')),
 
     'telemetry' => [
         'raw_retention_days' => env('TESLOG_RAW_RETENTION_DAYS', 90),

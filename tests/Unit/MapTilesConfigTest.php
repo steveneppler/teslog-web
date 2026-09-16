@@ -2,6 +2,7 @@
 
 namespace Tests\Unit;
 
+use App\Support\MapTiles;
 use PHPUnit\Framework\TestCase;
 
 class MapTilesConfigTest extends TestCase
@@ -208,5 +209,67 @@ class MapTilesConfigTest extends TestCase
 
         $this->assertStringContainsString('cartocdn.com', $tiles['light']);
         $this->assertStringContainsString('api_key=0', $tiles['light']);
+    }
+
+    public function test_resolved_tiles_name_the_effective_provider(): void
+    {
+        $this->assertSame('osm', MapTiles::resolve('osm', null)['provider']);
+        $this->assertSame('carto', MapTiles::resolve('carto', 'secret')['provider']);
+
+        // The fallbacks have to be visible, or the settings page cannot tell the
+        // user their choice did not take effect.
+        $this->assertSame('esri', MapTiles::resolve('carto', null)['provider']);
+        $this->assertSame('esri', MapTiles::resolve('not-a-provider', null)['provider']);
+    }
+
+    public function test_tile_urls_never_leak_an_unsubstituted_placeholder(): void
+    {
+        foreach ([[null, null], ['carto', 'secret'], ['carto', null], ['osm', null], ['bogus', 'secret']] as [$provider, $key]) {
+            $tiles = MapTiles::resolve($provider, $key);
+
+            foreach (['light', 'dark'] as $variant) {
+                $this->assertStringNotContainsString('{api_key}', $tiles[$variant]);
+            }
+        }
+    }
+
+    public function test_only_carto_requires_an_api_key(): void
+    {
+        $this->assertTrue(MapTiles::requiresApiKey('carto'));
+        $this->assertFalse(MapTiles::requiresApiKey('esri'));
+        $this->assertFalse(MapTiles::requiresApiKey('osm'));
+
+        // The settings page asks about the "use the server default" choice too.
+        $this->assertFalse(MapTiles::requiresApiKey(''));
+        $this->assertFalse(MapTiles::requiresApiKey(null));
+    }
+
+    public function test_every_offered_provider_is_selectable_and_labelled(): void
+    {
+        $options = MapTiles::options();
+
+        $this->assertSame(MapTiles::names(), array_keys($options));
+
+        foreach ($options as $name => $option) {
+            $this->assertNotSame('', $option['label'], "$name has no label");
+            $this->assertNotSame('', $option['description'], "$name has no description");
+
+            // A keyed provider with no signup link would be a dead end in the UI.
+            if ($option['api_key']) {
+                $this->assertStringStartsWith('http', (string) $option['api_key_url']);
+            }
+
+            $key = $option['api_key'] ? 'secret' : null;
+            $this->assertSame($name, MapTiles::resolve($name, $key)['provider']);
+        }
+
+        $this->assertArrayNotHasKey('light', $options['esri'], 'options() must not ship tile URLs to the settings UI');
+    }
+
+    public function test_options_never_expose_a_configured_api_key(): void
+    {
+        $encoded = json_encode(MapTiles::options());
+
+        $this->assertStringNotContainsString('api_key=', $encoded);
     }
 }
