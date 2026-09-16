@@ -147,8 +147,8 @@
                         if (!el || !window.L) { console.error('Leaflet not loaded'); return; }
                         var pts = @json($mapPoints);
                         if (pts.length === 0) return;
-                        var map = L.map(el, { attributionControl: false });
-                        L.tileLayer(window.getMapTileUrl(), { maxZoom: 19 }).addTo(map);
+                        var map = L.map(el);
+                        window.addMapTileLayer(map);
                         window.registerMap(map);
                         window.setupMapScrollZoom(map);
                         var latlngs = pts.map(function(p) { return [p.lat, p.lng]; });

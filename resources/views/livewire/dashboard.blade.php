@@ -457,8 +457,8 @@
                 }
 
                 if (!window.__dashDayMap) {
-                    window.__dashDayMap = L.map(el, { attributionControl: false, zoomControl: true });
-                    L.tileLayer(window.getMapTileUrl(), { maxZoom: 19 }).addTo(window.__dashDayMap);
+                    window.__dashDayMap = L.map(el, { zoomControl: true });
+                    window.addMapTileLayer(window.__dashDayMap);
                     window.registerMap(window.__dashDayMap);
                     window.setupMapScrollZoom(window.__dashDayMap);
                     window.__dashDayLayer = L.layerGroup().addTo(window.__dashDayMap);

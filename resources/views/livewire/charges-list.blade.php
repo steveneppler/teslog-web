@@ -222,8 +222,8 @@
                     window.__chargesMarkers.clearLayers();
                 }
             } else {
-                window.__chargesMap = L.map(el, { attributionControl: false, zoomControl: true });
-                L.tileLayer(window.getMapTileUrl(), { maxZoom: 19 }).addTo(window.__chargesMap);
+                window.__chargesMap = L.map(el, { zoomControl: true });
+                window.addMapTileLayer(window.__chargesMap);
                 window.registerMap(window.__chargesMap);
                 window.setupMapScrollZoom(window.__chargesMap);
                 window.__chargesMarkers = L.layerGroup().addTo(window.__chargesMap);
