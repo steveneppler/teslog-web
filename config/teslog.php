@@ -3,10 +3,17 @@
 // Map basemap tiles. CARTO basemaps now require an API key
 // (https://carto.com/basemaps/apikey), so the keyless Esri gray canvas is the
 // default. Set TESLOG_MAP_PROVIDER, or just set TESLOG_CARTO_API_KEY to use CARTO.
-// A blank env value ('' from a bare `KEY=` line) is treated as unset, so the
-// automatic CARTO selection still applies.
-$cartoApiKey = env('TESLOG_CARTO_API_KEY') ?: null;
-$mapProvider = env('TESLOG_MAP_PROVIDER') ?: ($cartoApiKey ? 'carto' : 'esri');
+// Only a missing or blank env value counts as unset ('' from a bare `KEY=` line);
+// any other value is taken literally, so an unrecognized provider still falls
+// back to Esri rather than triggering automatic selection.
+$mapEnv = static function (string $key): ?string {
+    $value = env($key);
+
+    return is_string($value) && trim($value) !== '' ? trim($value) : null;
+};
+
+$cartoApiKey = $mapEnv('TESLOG_CARTO_API_KEY');
+$mapProvider = $mapEnv('TESLOG_MAP_PROVIDER') ?? ($cartoApiKey ? 'carto' : 'esri');
 
 $mapProviders = [
     // Keyless. Tiles are only served up to z16, so Leaflet upscales beyond that.
@@ -65,7 +72,11 @@ return [
         'commands_per_vehicle' => env('TESLOG_COMMAND_RATE_LIMIT', 10),
     ],
 
-    'map_tiles' => $mapProviders[$mapProvider] ?? $mapProviders['esri'],
+    // Selecting CARTO without a key would emit `?api_key=` and reproduce the very
+    // failure this config exists to avoid, so treat it as unconfigured.
+    'map_tiles' => $mapProvider === 'carto' && $cartoApiKey === null
+        ? $mapProviders['esri']
+        : $mapProviders[$mapProvider] ?? $mapProviders['esri'],
 
     'telemetry' => [
         'raw_retention_days' => env('TESLOG_RAW_RETENTION_DAYS', 90),

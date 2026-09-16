@@ -97,6 +97,49 @@ class MapTilesConfigTest extends TestCase
         $this->assertStringContainsString('arcgisonline.com', $tiles['light']);
     }
 
+    public function test_falsy_provider_string_is_not_mistaken_for_unset(): void
+    {
+        $tiles = $this->mapTiles([
+            'TESLOG_MAP_PROVIDER' => '0',
+            'TESLOG_CARTO_API_KEY' => 'secret',
+        ]);
+
+        $this->assertStringContainsString('arcgisonline.com', $tiles['light'], '"0" is an unknown provider, not an unset one');
+    }
+
+    public function test_whitespace_provider_is_treated_as_unset(): void
+    {
+        $tiles = $this->mapTiles([
+            'TESLOG_MAP_PROVIDER' => '  ',
+            'TESLOG_CARTO_API_KEY' => 'secret',
+        ]);
+
+        $this->assertStringContainsString('cartocdn.com', $tiles['light']);
+    }
+
+    public function test_carto_without_an_api_key_falls_back_to_esri(): void
+    {
+        $tiles = $this->mapTiles(['TESLOG_MAP_PROVIDER' => 'carto']);
+
+        $this->assertStringContainsString('arcgisonline.com', $tiles['light']);
+        $this->assertStringNotContainsString('api_key=', $tiles['light']);
+    }
+
+    public function test_no_configuration_emits_a_blank_api_key(): void
+    {
+        foreach (['', 'esri', 'carto', 'osm', 'bogus'] as $provider) {
+            $tiles = $this->mapTiles(['TESLOG_MAP_PROVIDER' => $provider]);
+
+            foreach (['light', 'dark'] as $variant) {
+                $this->assertDoesNotMatchRegularExpression(
+                    '/api_key=(&|$)/',
+                    $tiles[$variant],
+                    "provider '$provider' emits a blank api_key on the $variant tiles"
+                );
+            }
+        }
+    }
+
     public function test_esri_upscales_past_its_native_zoom(): void
     {
         $tiles = $this->mapTiles();
