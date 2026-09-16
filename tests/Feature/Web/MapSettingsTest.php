@@ -6,6 +6,7 @@ use App\Livewire\Settings;
 use App\Models\User;
 use App\Support\MapTiles;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Livewire\Livewire;
 use Tests\TestCase;
 
@@ -32,7 +33,7 @@ class MapSettingsTest extends TestCase
     {
         config(['teslog.map_tiles' => ['provider' => 'osm', 'light' => 'https://tile.openstreetmap.org/{z}/{x}/{y}.png']]);
 
-        $user = User::factory()->create(['map_provider' => null, 'carto_api_key' => null]);
+        $user = User::factory()->create(['map_provider' => null, 'map_api_keys' => null]);
 
         $this->assertSame('osm', $user->mapTiles()['provider']);
     }
@@ -48,13 +49,40 @@ class MapSettingsTest extends TestCase
         $this->assertStringContainsString('tile.openstreetmap.org', $tiles['light']);
     }
 
-    public function test_a_users_carto_key_is_used_once_they_select_carto(): void
+    public function test_a_users_key_is_used_once_they_select_that_provider(): void
     {
-        $user = User::factory()->create(['map_provider' => 'carto', 'carto_api_key' => 'secret']);
+        $user = User::factory()->create([
+            'map_provider' => 'carto',
+            'map_api_keys' => ['carto' => 'secret'],
+        ]);
 
         $tiles = $user->mapTiles();
         $this->assertSame('carto', $tiles['provider']);
         $this->assertStringContainsString('api_key=secret', $tiles['light']);
+    }
+
+    /** A key belonging to another provider must not be sent to the selected one. */
+    public function test_only_the_selected_providers_key_is_used(): void
+    {
+        $user = User::factory()->create([
+            'map_provider' => 'maptiler',
+            'map_api_keys' => ['carto' => 'carto-key', 'maptiler' => 'maptiler-key'],
+        ]);
+
+        $tiles = $user->mapTiles();
+        $this->assertSame('maptiler', $tiles['provider']);
+        $this->assertStringContainsString('key=maptiler-key', $tiles['light']);
+        $this->assertStringNotContainsString('carto-key', $tiles['light']);
+    }
+
+    public function test_selecting_a_provider_with_no_stored_key_falls_back(): void
+    {
+        $user = User::factory()->create([
+            'map_provider' => 'stadia',
+            'map_api_keys' => ['carto' => 'carto-key'],
+        ]);
+
+        $this->assertSame('esri', $user->mapTiles()['provider']);
     }
 
     /**
@@ -66,7 +94,7 @@ class MapSettingsTest extends TestCase
     {
         config(['teslog.map_tiles' => ['provider' => 'esri', 'light' => 'https://server.arcgisonline.com/x']]);
 
-        $user = User::factory()->create(['map_provider' => null, 'carto_api_key' => 'secret']);
+        $user = User::factory()->create(['map_provider' => null, 'map_api_keys' => ['carto' => 'secret']]);
 
         $this->assertSame('esri', $user->mapTiles()['provider']);
     }
@@ -84,17 +112,63 @@ class MapSettingsTest extends TestCase
         $this->assertSame('osm', User::first()->map_provider);
     }
 
-    public function test_saving_carto_without_a_key_is_rejected_rather_than_silently_downgraded(): void
+    public function test_saving_a_keyed_provider_without_a_key_is_rejected_rather_than_silently_downgraded(): void
+    {
+        $this->actingAsUser();
+
+        foreach (MapTiles::keyedNames() as $provider) {
+            Livewire::test(Settings::class)
+                ->set('map_provider', $provider)
+                ->set('map_api_key', '   ')
+                ->call('save')
+                ->assertHasErrors('map_api_key');
+
+            $this->assertNull(User::first()->map_provider, "$provider was saved without a key");
+        }
+    }
+
+    public function test_every_keyed_provider_can_be_saved_with_a_key(): void
+    {
+        $this->actingAsUser();
+
+        foreach (MapTiles::keyedNames() as $provider) {
+            Livewire::test(Settings::class)
+                ->set('map_provider', $provider)
+                ->set('map_api_key', "key-for-$provider")
+                ->call('save')
+                ->assertHasNoErrors();
+
+            $user = User::first()->fresh();
+            $this->assertSame($provider, $user->map_provider);
+            $this->assertSame($provider, $user->mapTiles()['provider']);
+            $this->assertStringContainsString("key-for-$provider", $user->mapTiles()['light']);
+        }
+    }
+
+    /** Switching providers must not discard the key for the one left behind. */
+    public function test_keys_are_kept_per_provider(): void
     {
         $this->actingAsUser();
 
         Livewire::test(Settings::class)
             ->set('map_provider', 'carto')
-            ->set('carto_api_key', '   ')
+            ->set('map_api_key', 'carto-key')
             ->call('save')
-            ->assertHasErrors('carto_api_key');
+            ->assertHasNoErrors()
+            ->set('map_provider', 'maptiler')
+            // Selecting another provider shows that provider's key, not the last one.
+            ->assertSet('map_api_key', '')
+            ->set('map_api_key', 'maptiler-key')
+            ->call('save')
+            ->assertHasNoErrors()
+            // Coming back offers the original key again, without retyping.
+            ->set('map_provider', 'carto')
+            ->assertSet('map_api_key', 'carto-key');
 
-        $this->assertNull(User::first()->map_provider);
+        $this->assertSame(
+            ['carto' => 'carto-key', 'maptiler' => 'maptiler-key'],
+            User::first()->fresh()->map_api_keys
+        );
     }
 
     public function test_an_unknown_provider_is_rejected(): void
@@ -113,19 +187,19 @@ class MapSettingsTest extends TestCase
     {
         config(['teslog.map_tiles' => ['provider' => 'esri', 'light' => 'https://server.arcgisonline.com/x']]);
 
-        $this->actingAsUser(['map_provider' => 'carto', 'carto_api_key' => 'secret']);
+        $this->actingAsUser(['map_provider' => 'carto', 'map_api_keys' => ['carto' => 'secret']]);
 
         Livewire::test(Settings::class)
             ->set('map_provider', '')
             ->call('save')
             ->assertHasNoErrors();
 
-        $user = User::first();
+        $user = User::first()->fresh();
         $this->assertNull($user->map_provider);
         $this->assertSame('esri', $user->mapTiles()['provider']);
 
         // The key survives so switching back to CARTO does not mean retyping it.
-        $this->assertSame('secret', $user->carto_api_key);
+        $this->assertSame('secret', $user->mapApiKey('carto'));
     }
 
     public function test_saving_unrelated_preferences_does_not_reload_the_page(): void
@@ -139,15 +213,14 @@ class MapSettingsTest extends TestCase
             ->assertNotDispatched('map-settings-changed');
     }
 
-    public function test_the_carto_key_is_encrypted_at_rest(): void
+    public function test_stored_keys_are_encrypted_at_rest(): void
     {
-        $user = User::factory()->create(['carto_api_key' => 'secret']);
+        $user = User::factory()->create(['map_api_keys' => ['carto' => 'secret']]);
 
-        $stored = \DB::table('users')->where('id', $user->id)->value('carto_api_key');
+        $stored = DB::table('users')->where('id', $user->id)->value('map_api_keys');
 
-        $this->assertNotSame('secret', $stored);
         $this->assertStringNotContainsString('secret', (string) $stored);
-        $this->assertSame('secret', $user->fresh()->carto_api_key);
+        $this->assertSame('secret', $user->fresh()->mapApiKey('carto'));
     }
 
     public function test_the_maps_section_offers_every_provider(): void
@@ -167,12 +240,18 @@ class MapSettingsTest extends TestCase
     {
         $this->actingAsUser();
 
-        Livewire::test(Settings::class)
-            ->set('map_provider', 'osm')
-            ->assertDontSee('CARTO API key')
-            ->set('map_provider', 'carto')
-            ->assertSee('CARTO API key')
-            ->assertSee('carto.com/basemaps/apikey');
+        $page = Livewire::test(Settings::class);
+
+        foreach (MapTiles::names() as $provider) {
+            $page->set('map_provider', $provider);
+
+            if (MapTiles::requiresApiKey($provider)) {
+                $page->assertSee(MapTiles::label($provider).' API key')
+                    ->assertSee(MapTiles::apiKeyUrl($provider), false);
+            } else {
+                $page->assertDontSee('wire:model="map_api_key"', false);
+            }
+        }
     }
 
     public function test_the_layout_ships_the_users_own_tiles_to_the_browser(): void
@@ -184,10 +263,11 @@ class MapSettingsTest extends TestCase
             ->assertSee('tile.openstreetmap.org', false);
     }
 
-    public function test_the_carto_key_is_not_serialized_with_the_user(): void
+    public function test_stored_keys_are_not_serialized_with_the_user(): void
     {
-        $user = User::factory()->create(['carto_api_key' => 'secret']);
+        $user = User::factory()->create(['map_api_keys' => ['carto' => 'secret']]);
 
-        $this->assertArrayNotHasKey('carto_api_key', $user->toArray());
+        $this->assertArrayNotHasKey('map_api_keys', $user->toArray());
+        $this->assertStringNotContainsString('secret', json_encode($user->toArray()));
     }
 }

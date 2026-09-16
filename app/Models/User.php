@@ -28,13 +28,13 @@ class User extends Authenticatable
         'theme',
         'debug_mode',
         'map_provider',
-        'carto_api_key',
+        'map_api_keys',
     ];
 
     protected $hidden = [
         'password',
         'remember_token',
-        'carto_api_key',
+        'map_api_keys',
     ];
 
     protected function casts(): array
@@ -43,7 +43,7 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'debug_mode' => 'boolean',
-            'carto_api_key' => 'encrypted',
+            'map_api_keys' => 'encrypted:array',
         ];
     }
 
@@ -175,6 +175,33 @@ class User extends Authenticatable
     public function mapTiles(): array
     {
         return MapTiles::forUser($this);
+    }
+
+    /**
+     * A key is kept per provider, so switching away and back does not mean
+     * retyping it.
+     */
+    public function mapApiKey(?string $provider): ?string
+    {
+        if ($provider === null) {
+            return null;
+        }
+
+        return ($this->map_api_keys ?? [])[$provider] ?? null;
+    }
+
+    /** Store (or, with a null key, forget) this user's key for one provider. */
+    public function setMapApiKey(string $provider, ?string $key): void
+    {
+        $keys = $this->map_api_keys ?? [];
+
+        if ($key === null) {
+            unset($keys[$provider]);
+        } else {
+            $keys[$provider] = $key;
+        }
+
+        $this->map_api_keys = $keys ?: null;
     }
 
     public function vehicles(): HasMany

@@ -101,16 +101,16 @@
 
                 @if(\App\Support\MapTiles::requiresApiKey($map_provider))
                     <div>
-                        <label class="block text-sm font-medium text-text-secondary">CARTO API key</label>
-                        <input type="password" wire:model="carto_api_key" autocomplete="off"
+                        <label class="block text-sm font-medium text-text-secondary">{{ $providers[$map_provider]['label'] }} API key</label>
+                        <input type="password" wire:model="map_api_key" autocomplete="off"
                             class="mt-1 block w-full rounded-lg border border-border-input bg-surface-alt px-4 py-2 text-text-primary focus:border-red-500 focus:outline-none">
                         <p class="mt-1 text-sm text-text-secondary">
-                            Stored encrypted and used only for your own map tiles.
-                            Get a free key at
+                            Stored encrypted and used only for your own map tiles. Keys are kept per
+                            provider, so switching away and back does not mean retyping one.
                             <a href="{{ $providers[$map_provider]['api_key_url'] }}" target="_blank" rel="noopener"
-                                class="text-red-400 hover:underline">carto.com</a>.
+                                class="text-red-400 hover:underline">Get a key</a>.
                         </p>
-                        @error('carto_api_key')
+                        @error('map_api_key')
                             <p class="mt-1 text-sm text-red-400">{{ $message }}</p>
                         @enderror
                     </div>

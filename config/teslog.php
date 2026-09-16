@@ -32,7 +32,13 @@ return [
         'commands_per_vehicle' => env('TESLOG_COMMAND_RATE_LIMIT', 10),
     ],
 
-    'map_tiles' => MapTiles::resolve(env('TESLOG_MAP_PROVIDER'), env('TESLOG_CARTO_API_KEY')),
+    // TESLOG_MAP_API_KEY supplies the key for whichever provider is selected;
+    // TESLOG_CARTO_API_KEY predates the other keyed providers and still works,
+    // including selecting CARTO on its own.
+    'map_tiles' => MapTiles::resolve(
+        env('TESLOG_MAP_PROVIDER'),
+        MapTiles::normalize(env('TESLOG_MAP_API_KEY')) ?? env('TESLOG_CARTO_API_KEY'),
+    ),
 
     'telemetry' => [
         'raw_retention_days' => env('TESLOG_RAW_RETENTION_DAYS', 90),

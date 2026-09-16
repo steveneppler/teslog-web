@@ -203,7 +203,7 @@ Fleet Telemetry publishes decoded vehicle data to the Mosquitto MQTT broker with
 - **Backend:** Laravel 12, PHP 8.2+
 - **Frontend:** Livewire 4, Blade, Tailwind CSS
 - **Charts:** Chart.js
-- **Maps:** Leaflet.js with theme-aware basemap tiles, chosen per user in Settings (Esri by default, CARTO or OSM optional)
+- **Maps:** Leaflet.js with theme-aware basemap tiles, chosen per user in Settings (seven providers, Esri by default)
 - **Real-time:** Laravel Reverb (WebSocket)
 - **Database:** SQLite (default), MySQL/PostgreSQL optional
 - **Queue/Cache:** Redis
@@ -237,24 +237,32 @@ Fleet Telemetry publishes decoded vehicle data to the Mosquitto MQTT broker with
 | `TESLOG_API_RATE_LIMIT` | `60` | API requests per minute |
 | `TESLOG_COMMAND_RATE_LIMIT` | `10` | Vehicle commands per minute per vehicle |
 | `TESLOG_RAW_RETENTION_DAYS` | `90` | Days to retain raw telemetry data |
-| `TESLOG_MAP_PROVIDER` | `esri` | Default basemap for users who have not picked one (`esri`, `osm`, `carto`) |
-| `TESLOG_CARTO_API_KEY` | — | Default CARTO API key. Setting it alone selects CARTO |
+| `TESLOG_MAP_PROVIDER` | `esri` | Default basemap for users who have not picked one (see Map Basemaps below) |
+| `TESLOG_MAP_API_KEY` | — | API key for the default provider, when it needs one |
+| `TESLOG_CARTO_API_KEY` | — | Legacy CARTO key. Still works, and setting it alone selects CARTO |
 
 ### Map Basemaps
 
 Each user picks their own basemap under **Settings → Maps**, so switching
 providers takes effect on save — no container restart or `.env` edit.
 
-| Provider | API key | Notes |
-|----------|---------|-------|
-| `esri` | No | Default. Muted light/dark canvas; detail upscaled past zoom 16 |
-| `osm` | No | Standard OpenStreetMap tiles; no dark variant |
-| `carto` | Yes | Sharpest option, full detail to zoom 20. Free key from [carto.com](https://carto.com/basemaps/apikey) |
+| Provider | API key | Dark style | Max zoom | Notes |
+|----------|---------|------------|----------|-------|
+| `esri` | No | Yes | 19 (native 16) | Default. Muted light/dark canvas; detail upscaled past zoom 16 |
+| `esri-satellite` | No | No | 20 (native 19) | Aerial and satellite photography |
+| `osm` | No | No | 19 | Standard OpenStreetMap tiles |
+| `carto` | Yes | Yes | 20 | Positron / Dark Matter. Key from [carto.com](https://carto.com/basemaps/apikey) |
+| `stadia` | Yes | Yes | 20 | Alidade Smooth. Key from [stadiamaps.com](https://client.stadiamaps.com/signup/); also needs your domain registered |
+| `maptiler` | Yes | Yes | 21 | Dataviz. Key from [maptiler.com](https://cloud.maptiler.com/account/keys/) |
+| `thunderforest` | Yes | Yes | 22 | Transport. Key from [thunderforest.com](https://www.thunderforest.com/pricing/) |
 
-The `TESLOG_MAP_PROVIDER` and `TESLOG_CARTO_API_KEY` variables now only supply
-the default for users who have not made a choice. A user's CARTO key is stored
-encrypted and is used only for their own map tiles. Selecting CARTO without a
-key falls back to Esri, as does an unrecognized provider name.
+Keys are stored encrypted, per provider and per user, and are used only for that
+user's own map tiles. Keeping them per provider means switching away and back
+does not mean retyping a key. Selecting a keyed provider without a key falls back
+to Esri, as does an unrecognized provider name.
+
+`TESLOG_MAP_PROVIDER` and the key variables only supply the default for users who
+have not made a choice.
 
 ## Artisan Commands
 

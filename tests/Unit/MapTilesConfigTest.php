@@ -7,7 +7,7 @@ use PHPUnit\Framework\TestCase;
 
 class MapTilesConfigTest extends TestCase
 {
-    private const KEYS = ['TESLOG_MAP_PROVIDER', 'TESLOG_CARTO_API_KEY'];
+    private const KEYS = ['TESLOG_MAP_PROVIDER', 'TESLOG_CARTO_API_KEY', 'TESLOG_MAP_API_KEY'];
 
     protected function tearDown(): void
     {
@@ -128,12 +128,12 @@ class MapTilesConfigTest extends TestCase
 
     public function test_tile_urls_never_carry_an_empty_api_key(): void
     {
-        foreach (['', 'esri', 'carto', 'osm', 'bogus'] as $provider) {
+        foreach (array_merge(['', 'bogus'], MapTiles::names()) as $provider) {
             $tiles = $this->mapTiles(['TESLOG_MAP_PROVIDER' => $provider]);
 
             foreach (['light', 'dark'] as $variant) {
                 $this->assertDoesNotMatchRegularExpression(
-                    '/api_key=(&|$)/',
+                    '/(api_key|apikey|key)=(&|$)/',
                     $tiles[$variant],
                     "provider '$provider' emits a blank api_key on the $variant tiles"
                 );
@@ -155,17 +155,12 @@ class MapTilesConfigTest extends TestCase
      */
     public function test_every_provider_links_its_attribution(): void
     {
-        // CARTO needs a key here, or the fallback would quietly return Esri's tiles
-        // and this would never exercise CARTO's own attribution.
-        $env = [
-            'esri' => [],
-            'carto' => ['TESLOG_CARTO_API_KEY' => 'secret'],
-            'osm' => [],
-        ];
+        // A keyed provider needs a key here, or the fallback would quietly return
+        // Esri's tiles and this would never exercise that provider's attribution.
+        foreach (MapTiles::names() as $provider) {
+            $tiles = MapTiles::resolve($provider, MapTiles::requiresApiKey($provider) ? 'secret' : null);
 
-        foreach ($env as $provider => $extra) {
-            $tiles = $this->mapTiles(['TESLOG_MAP_PROVIDER' => $provider] + $extra);
-
+            $this->assertSame($provider, $tiles['provider'], "$provider fell back instead of resolving");
             $this->assertStringContainsString('<a href="http', $tiles['attribution'], "$provider attribution is not linked");
         }
 
@@ -233,15 +228,105 @@ class MapTilesConfigTest extends TestCase
         }
     }
 
-    public function test_only_carto_requires_an_api_key(): void
+    public function test_the_keyless_providers_need_no_api_key(): void
     {
-        $this->assertTrue(MapTiles::requiresApiKey('carto'));
-        $this->assertFalse(MapTiles::requiresApiKey('esri'));
-        $this->assertFalse(MapTiles::requiresApiKey('osm'));
+        foreach (['esri', 'esri-satellite', 'osm'] as $provider) {
+            $this->assertFalse(MapTiles::requiresApiKey($provider), "$provider should not need a key");
+            $this->assertSame($provider, MapTiles::resolve($provider, null)['provider']);
+        }
+
+        foreach (['carto', 'stadia', 'maptiler', 'thunderforest'] as $provider) {
+            $this->assertTrue(MapTiles::requiresApiKey($provider), "$provider should need a key");
+            $this->assertSame('esri', MapTiles::resolve($provider, null)['provider'], "$provider should fall back without one");
+        }
+
+        $this->assertSame(
+            ['carto', 'stadia', 'maptiler', 'thunderforest'],
+            MapTiles::keyedNames()
+        );
 
         // The settings page asks about the "use the server default" choice too.
         $this->assertFalse(MapTiles::requiresApiKey(''));
         $this->assertFalse(MapTiles::requiresApiKey(null));
+    }
+
+    /**
+     * Each provider spells its key parameter differently, and Leaflet only
+     * interpolates its own placeholders — so a missed substitution would send the
+     * literal text "{api_key}" to the tile server.
+     */
+    public function test_each_keyed_provider_carries_the_key_in_its_own_parameter(): void
+    {
+        $expected = [
+            'carto' => 'api_key=secret',
+            'stadia' => 'api_key=secret',
+            'maptiler' => 'key=secret',
+            'thunderforest' => 'apikey=secret',
+        ];
+
+        foreach ($expected as $provider => $parameter) {
+            $tiles = MapTiles::resolve($provider, 'secret');
+
+            foreach (['light', 'dark'] as $variant) {
+                $this->assertStringContainsString($parameter, $tiles[$variant], "$provider $variant tiles");
+            }
+        }
+    }
+
+    /**
+     * MapTiler serves 512px tiles; without the matching zoom offset every map
+     * renders one zoom level too far in.
+     */
+    public function test_oversized_tiles_carry_a_matching_zoom_offset(): void
+    {
+        $maptiler = MapTiles::resolve('maptiler', 'secret');
+        $this->assertSame(512, $maptiler['tile_size']);
+        $this->assertSame(-1, $maptiler['zoom_offset']);
+
+        foreach (['esri', 'osm', 'carto', 'stadia', 'thunderforest'] as $provider) {
+            $tiles = MapTiles::resolve($provider, MapTiles::requiresApiKey($provider) ? 'secret' : null);
+
+            $this->assertNull($tiles['tile_size'], "$provider should use Leaflet's default tile size");
+            $this->assertNull($tiles['zoom_offset']);
+        }
+    }
+
+    /** Only the two photographic/plain styles reuse one basemap in dark mode. */
+    public function test_providers_with_a_dark_style_use_a_different_url_for_it(): void
+    {
+        foreach (['esri', 'carto', 'stadia', 'maptiler', 'thunderforest'] as $provider) {
+            $tiles = MapTiles::resolve($provider, MapTiles::requiresApiKey($provider) ? 'secret' : null);
+
+            $this->assertNotSame($tiles['light'], $tiles['dark'], "$provider has no distinct dark style");
+        }
+
+        foreach (['osm', 'esri-satellite'] as $provider) {
+            $tiles = MapTiles::resolve($provider, null);
+
+            $this->assertSame($tiles['light'], $tiles['dark'], "$provider has no dark variant to offer");
+        }
+    }
+
+    public function test_the_generic_env_key_serves_any_keyed_provider(): void
+    {
+        $tiles = $this->mapTiles([
+            'TESLOG_MAP_PROVIDER' => 'maptiler',
+            'TESLOG_MAP_API_KEY' => 'secret',
+        ]);
+
+        $this->assertSame('maptiler', $tiles['provider']);
+        $this->assertStringContainsString('key=secret', $tiles['light']);
+    }
+
+    public function test_the_generic_env_key_wins_over_the_legacy_carto_one(): void
+    {
+        $tiles = $this->mapTiles([
+            'TESLOG_MAP_PROVIDER' => 'carto',
+            'TESLOG_MAP_API_KEY' => 'newer',
+            'TESLOG_CARTO_API_KEY' => 'older',
+        ]);
+
+        $this->assertStringContainsString('api_key=newer', $tiles['light']);
     }
 
     public function test_every_offered_provider_is_selectable_and_labelled(): void
