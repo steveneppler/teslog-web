@@ -3,8 +3,10 @@
 // Map basemap tiles. CARTO basemaps now require an API key
 // (https://carto.com/basemaps/apikey), so the keyless Esri gray canvas is the
 // default. Set TESLOG_MAP_PROVIDER, or just set TESLOG_CARTO_API_KEY to use CARTO.
-$cartoApiKey = env('TESLOG_CARTO_API_KEY');
-$mapProvider = env('TESLOG_MAP_PROVIDER', $cartoApiKey ? 'carto' : 'esri');
+// A blank env value ('' from a bare `KEY=` line) is treated as unset, so the
+// automatic CARTO selection still applies.
+$cartoApiKey = env('TESLOG_CARTO_API_KEY') ?: null;
+$mapProvider = env('TESLOG_MAP_PROVIDER') ?: ($cartoApiKey ? 'carto' : 'esri');
 
 $mapProviders = [
     // Keyless. Tiles are only served up to z16, so Leaflet upscales beyond that.
