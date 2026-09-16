@@ -211,7 +211,7 @@
         }
 
         var map = L.map(el, { attributionControl: false });
-        L.tileLayer(window.getMapTileUrl(), { maxZoom: 19 }).addTo(map);
+        window.addMapTileLayer(map);
         window.registerMap(map);
         window.setupMapScrollZoom(map);
 
@@ -258,7 +258,7 @@
         var zoom = hasLocation ? 16 : 4;
 
         var map = L.map(el, { attributionControl: false });
-        L.tileLayer(window.getMapTileUrl(), { maxZoom: 19 }).addTo(map);
+        window.addMapTileLayer(map);
         window.registerMap(map);
         map.setView([lat, lng], zoom);
 

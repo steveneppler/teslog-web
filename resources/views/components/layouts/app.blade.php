@@ -140,13 +140,25 @@
         };
 
         // Map tile URL helper for theme-aware maps
+        window.__mapTiles = @json(config('teslog.map_tiles'));
         window.getMapTileUrl = function() {
             var isDark = document.documentElement.classList.contains('dark') ||
                 (!document.documentElement.classList.contains('light') &&
                  window.matchMedia('(prefers-color-scheme: dark)').matches);
-            return isDark
-                ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
-                : 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png';
+            return isDark ? window.__mapTiles.dark : window.__mapTiles.light;
+        };
+
+        // Adds the configured basemap to a Leaflet map
+        window.addMapTileLayer = function(map, options) {
+            var tiles = window.__mapTiles;
+            var opts = {
+                subdomains: tiles.subdomains,
+                maxZoom: tiles.max_zoom,
+                maxNativeZoom: tiles.max_native_zoom,
+                attribution: tiles.attribution,
+            };
+            for (var key in (options || {})) { opts[key] = options[key]; }
+            return L.tileLayer(window.getMapTileUrl(), opts).addTo(map);
         };
 
         // Map tile theme switching
