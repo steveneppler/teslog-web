@@ -203,7 +203,7 @@ Fleet Telemetry publishes decoded vehicle data to the Mosquitto MQTT broker with
 - **Backend:** Laravel 12, PHP 8.2+
 - **Frontend:** Livewire 4, Blade, Tailwind CSS
 - **Charts:** Chart.js
-- **Maps:** Leaflet.js with CartoDB tiles (theme-aware)
+- **Maps:** Leaflet.js with configurable basemap tiles (theme-aware; Esri by default, CARTO or OSM optional)
 - **Real-time:** Laravel Reverb (WebSocket)
 - **Database:** SQLite (default), MySQL/PostgreSQL optional
 - **Queue/Cache:** Redis

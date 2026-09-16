@@ -16,16 +16,16 @@ $mapProviders = [
         'subdomains' => 'abc',
         'max_zoom' => 19,
         'max_native_zoom' => 16,
-        'attribution' => '&copy; Esri, HERE, Garmin, &copy; OpenStreetMap contributors',
+        'attribution' => 'Tiles &copy; <a href="https://www.esri.com/" target="_blank" rel="noopener">Esri</a> &mdash; Esri, HERE, Garmin, &copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors',
     ],
     // Requires TESLOG_CARTO_API_KEY.
     'carto' => [
-        'light' => 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png?api_key=' . rawurlencode((string) $cartoApiKey),
-        'dark' => 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png?api_key=' . rawurlencode((string) $cartoApiKey),
+        'light' => 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png?api_key='.rawurlencode((string) $cartoApiKey),
+        'dark' => 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png?api_key='.rawurlencode((string) $cartoApiKey),
         'subdomains' => 'abcd',
         'max_zoom' => 20,
         'max_native_zoom' => 20,
-        'attribution' => '&copy; OpenStreetMap contributors &copy; CARTO',
+        'attribution' => '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions" target="_blank" rel="noopener">CARTO</a>',
     ],
     // Keyless, but has no dark variant.
     'osm' => [
@@ -34,7 +34,7 @@ $mapProviders = [
         'subdomains' => 'abc',
         'max_zoom' => 19,
         'max_native_zoom' => 19,
-        'attribution' => '&copy; OpenStreetMap contributors',
+        'attribution' => '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors',
     ],
 ];
 
