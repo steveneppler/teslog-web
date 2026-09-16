@@ -5,6 +5,15 @@ use App\Support\MapTiles;
 // Basemap tiles. The catalog and the provider selection rules live in
 // App\Support\MapTiles; these env vars are only the default for users who have
 // not picked a provider on the settings page.
+$mapProvider = MapTiles::normalize(env('TESLOG_MAP_PROVIDER'));
+
+// TESLOG_MAP_API_KEY supplies the key for whichever provider is selected.
+// TESLOG_CARTO_API_KEY predates the other keyed providers and still works,
+// including selecting CARTO on its own — but it stays scoped to CARTO, or picking
+// another provider would send a CARTO key to that provider's servers.
+$mapApiKey = MapTiles::normalize(env('TESLOG_MAP_API_KEY'))
+    ?? (in_array($mapProvider, [null, 'carto'], true) ? env('TESLOG_CARTO_API_KEY') : null);
+
 return [
     'telemetry_secret' => env('TESLOG_TELEMETRY_SECRET'),
     'horizon_enabled' => env('TESLOG_HORIZON_ENABLED', true),
@@ -32,13 +41,7 @@ return [
         'commands_per_vehicle' => env('TESLOG_COMMAND_RATE_LIMIT', 10),
     ],
 
-    // TESLOG_MAP_API_KEY supplies the key for whichever provider is selected;
-    // TESLOG_CARTO_API_KEY predates the other keyed providers and still works,
-    // including selecting CARTO on its own.
-    'map_tiles' => MapTiles::resolve(
-        env('TESLOG_MAP_PROVIDER'),
-        MapTiles::normalize(env('TESLOG_MAP_API_KEY')) ?? env('TESLOG_CARTO_API_KEY'),
-    ),
+    'map_tiles' => MapTiles::resolve($mapProvider, $mapApiKey),
 
     'telemetry' => [
         'raw_retention_days' => env('TESLOG_RAW_RETENTION_DAYS', 90),

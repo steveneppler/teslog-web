@@ -145,6 +145,27 @@ class MapSettingsTest extends TestCase
         }
     }
 
+    /**
+     * A key of "0" is falsy in PHP but is a key like any other; the env path
+     * deliberately preserves it, so the settings form must not drop it and
+     * silently fall back to Esri.
+     */
+    public function test_a_falsy_api_key_is_saved_rather_than_treated_as_absent(): void
+    {
+        $this->actingAsUser();
+
+        Livewire::test(Settings::class)
+            ->set('map_provider', 'carto')
+            ->set('map_api_key', '0')
+            ->call('save')
+            ->assertHasNoErrors();
+
+        $user = User::first()->fresh();
+        $this->assertSame('0', $user->mapApiKey('carto'));
+        $this->assertSame('carto', $user->mapTiles()['provider']);
+        $this->assertStringContainsString('api_key=0', $user->mapTiles()['light']);
+    }
+
     /** Switching providers must not discard the key for the one left behind. */
     public function test_keys_are_kept_per_provider(): void
     {

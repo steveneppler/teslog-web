@@ -66,7 +66,8 @@ class Settings extends Component
 
         $user = Auth::user();
         $mapProvider = $this->map_provider ?: null;
-        $mapApiKey = trim($this->map_api_key) ?: null;
+        $trimmedKey = trim($this->map_api_key);
+        $mapApiKey = $trimmedKey === '' ? null : $trimmedKey;
         $mapChanged = $mapProvider !== $user->map_provider
             || ($mapProvider !== null && $mapApiKey !== $user->mapApiKey($mapProvider));
 

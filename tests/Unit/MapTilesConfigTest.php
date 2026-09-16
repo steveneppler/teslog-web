@@ -318,6 +318,36 @@ class MapTilesConfigTest extends TestCase
         $this->assertStringContainsString('key=secret', $tiles['light']);
     }
 
+    /**
+     * The legacy variable names CARTO specifically, so handing it to another
+     * provider would send a CARTO credential to that provider's tile servers.
+     */
+    public function test_the_legacy_carto_key_is_never_sent_to_another_provider(): void
+    {
+        foreach (array_diff(MapTiles::keyedNames(), ['carto']) as $provider) {
+            $tiles = $this->mapTiles([
+                'TESLOG_MAP_PROVIDER' => $provider,
+                'TESLOG_CARTO_API_KEY' => 'carto-secret',
+            ]);
+
+            $this->assertSame('esri', $tiles['provider'], "$provider accepted the legacy CARTO key");
+            $this->assertStringNotContainsString('carto-secret', $tiles['light']);
+            $this->assertStringNotContainsString('carto-secret', $tiles['dark']);
+        }
+    }
+
+    public function test_the_generic_env_key_still_serves_a_keyless_provider_choice(): void
+    {
+        // The legacy key is scoped to CARTO, but must not disturb a keyless pick.
+        $tiles = $this->mapTiles([
+            'TESLOG_MAP_PROVIDER' => 'osm',
+            'TESLOG_CARTO_API_KEY' => 'carto-secret',
+        ]);
+
+        $this->assertSame('osm', $tiles['provider']);
+        $this->assertStringNotContainsString('carto-secret', $tiles['light']);
+    }
+
     public function test_the_generic_env_key_wins_over_the_legacy_carto_one(): void
     {
         $tiles = $this->mapTiles([
