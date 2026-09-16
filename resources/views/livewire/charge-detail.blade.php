@@ -114,7 +114,7 @@
                             function initMap() {
                                 var el = document.getElementById('charge-map');
                                 if (!el || !window.L) return;
-                                var map = L.map(el, { attributionControl: false });
+                                var map = L.map(el);
                                 window.addMapTileLayer(map);
                                 window.setupMapScrollZoom(map);
                                 L.circleMarker([{{ $charge->latitude }}, {{ $charge->longitude }}], { radius: 8, color: '#22c55e', fillColor: '#22c55e', fillOpacity: 1, weight: 2 }).addTo(map);

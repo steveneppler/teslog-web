@@ -222,7 +222,7 @@
                     window.__chargesMarkers.clearLayers();
                 }
             } else {
-                window.__chargesMap = L.map(el, { attributionControl: false, zoomControl: true });
+                window.__chargesMap = L.map(el, { zoomControl: true });
                 window.addMapTileLayer(window.__chargesMap);
                 window.registerMap(window.__chargesMap);
                 window.setupMapScrollZoom(window.__chargesMap);

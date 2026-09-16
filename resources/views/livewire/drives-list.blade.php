@@ -275,7 +275,7 @@
                         window.__summaryMapLayers.clearLayers();
                     }
                 } else {
-                    window.__summaryMapInstance = L.map(el, { attributionControl: false, zoomControl: true });
+                    window.__summaryMapInstance = L.map(el, { zoomControl: true });
                     window.addMapTileLayer(window.__summaryMapInstance);
                     window.registerMap(window.__summaryMapInstance);
                     window.setupMapScrollZoom(window.__summaryMapInstance);
@@ -305,7 +305,7 @@
                     if (!routes || routes.length === 0) return;
                     var el = document.getElementById('day-map-' + date);
                     if (!el) return;
-                    var map = L.map(el, { attributionControl: false, zoomControl: false, scrollWheelZoom: false, dragging: false, doubleClickZoom: false, touchZoom: false });
+                    var map = L.map(el, { zoomControl: false, scrollWheelZoom: false, dragging: false, doubleClickZoom: false, touchZoom: false });
                     window.addMapTileLayer(map);
                     window.registerMap(map);
                     var allBounds = [];

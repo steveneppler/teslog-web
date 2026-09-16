@@ -457,7 +457,7 @@
                 }
 
                 if (!window.__dashDayMap) {
-                    window.__dashDayMap = L.map(el, { attributionControl: false, zoomControl: true });
+                    window.__dashDayMap = L.map(el, { zoomControl: true });
                     window.addMapTileLayer(window.__dashDayMap);
                     window.registerMap(window.__dashDayMap);
                     window.setupMapScrollZoom(window.__dashDayMap);

@@ -96,6 +96,23 @@
     border-radius: 0 !important;
 }
 
+/* Basemap attribution — required by the tile providers, kept compact and themed */
+.leaflet-container .leaflet-control-attribution {
+    background: color-mix(in srgb, var(--theme-surface) 80%, transparent);
+    color: var(--theme-text-muted);
+    font-size: 10px;
+    line-height: 1.5;
+    padding: 0 5px;
+    border-radius: 4px 0 0 0;
+}
+.leaflet-container .leaflet-control-attribution a {
+    color: var(--theme-text-secondary);
+    text-decoration: none;
+}
+.leaflet-container .leaflet-control-attribution a:hover {
+    text-decoration: underline;
+}
+
 /* Keep Leaflet maps below page-level UI (popovers, modals) */
 .leaflet-container {
     z-index: 0 !important;

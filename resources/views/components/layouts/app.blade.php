@@ -158,6 +158,9 @@
                 attribution: tiles.attribution,
             };
             for (var key in (options || {})) { opts[key] = options[key]; }
+            if (map.attributionControl) {
+                map.attributionControl.setPrefix('');
+            }
             return L.tileLayer(window.getMapTileUrl(), opts).addTo(map);
         };
 

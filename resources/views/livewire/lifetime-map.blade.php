@@ -140,7 +140,7 @@
         if (!el) return;
 
         if (!__lifetimeMap) {
-            __lifetimeMap = L.map(el, { attributionControl: false, zoomControl: true });
+            __lifetimeMap = L.map(el, { zoomControl: true });
             window.addMapTileLayer(__lifetimeMap);
             window.registerMap(__lifetimeMap);
             window.setupMapScrollZoom(__lifetimeMap);

@@ -210,7 +210,7 @@
             __overviewMap = null;
         }
 
-        var map = L.map(el, { attributionControl: false });
+        var map = L.map(el);
         window.addMapTileLayer(map);
         window.registerMap(map);
         window.setupMapScrollZoom(map);
@@ -257,7 +257,7 @@
         __editRadius = radius;
         var zoom = hasLocation ? 16 : 4;
 
-        var map = L.map(el, { attributionControl: false });
+        var map = L.map(el);
         window.addMapTileLayer(map);
         window.registerMap(map);
         map.setView([lat, lng], zoom);
