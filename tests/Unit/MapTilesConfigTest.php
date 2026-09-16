@@ -125,7 +125,7 @@ class MapTilesConfigTest extends TestCase
         $this->assertStringNotContainsString('api_key=', $tiles['light']);
     }
 
-    public function test_no_configuration_emits_a_blank_api_key(): void
+    public function test_tile_urls_never_carry_an_empty_api_key(): void
     {
         foreach (['', 'esri', 'carto', 'osm', 'bogus'] as $provider) {
             $tiles = $this->mapTiles(['TESLOG_MAP_PROVIDER' => $provider]);
@@ -184,6 +184,22 @@ class MapTilesConfigTest extends TestCase
         ]);
 
         $this->assertStringContainsString('arcgisonline.com', $tiles['light'], '"false" is an unknown provider, not an unset one');
+    }
+
+    /**
+     * Laravel reads `KEY=null` as "no value", so a null-like provider is unset
+     * rather than an unknown provider name. This pins that as deliberate.
+     */
+    public function test_null_like_provider_is_treated_as_unset(): void
+    {
+        foreach (['null', '(null)'] as $value) {
+            $tiles = $this->mapTiles([
+                'TESLOG_MAP_PROVIDER' => $value,
+                'TESLOG_CARTO_API_KEY' => 'secret',
+            ]);
+
+            $this->assertStringContainsString('cartocdn.com', $tiles['light'], "'$value' should read as unset");
+        }
     }
 
     public function test_falsy_carto_api_key_still_selects_carto(): void

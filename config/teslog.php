@@ -3,8 +3,9 @@
 // Map basemap tiles. CARTO basemaps now require an API key
 // (https://carto.com/basemaps/apikey), so the keyless Esri gray canvas is the
 // default. Set TESLOG_MAP_PROVIDER, or just set TESLOG_CARTO_API_KEY to use CARTO.
-// Only a missing or blank env value counts as unset ('' from a bare `KEY=` line);
-// any other value is taken literally, so an unrecognized provider still falls
+// A missing, blank or null-like value counts as unset — Laravel reads a bare
+// `KEY=`, `KEY=null` and `KEY=(null)` all as "no value". Anything else is taken
+// literally, including `false` and `0`, so an unrecognized provider name falls
 // back to Esri rather than triggering automatic selection.
 $mapEnv = static function (string $key): ?string {
     $value = env($key);
