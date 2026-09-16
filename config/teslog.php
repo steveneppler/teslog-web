@@ -9,11 +9,19 @@
 $mapEnv = static function (string $key): ?string {
     $value = env($key);
 
-    return is_string($value) && trim($value) !== '' ? trim($value) : null;
+    if ($value === null) {
+        return null;
+    }
+
+    // env() coerces `KEY=false` to a boolean, which must still read as the
+    // literal (unrecognized) provider name rather than as an unset value.
+    $value = is_bool($value) ? ($value ? 'true' : 'false') : trim((string) $value);
+
+    return $value === '' ? null : $value;
 };
 
 $cartoApiKey = $mapEnv('TESLOG_CARTO_API_KEY');
-$mapProvider = $mapEnv('TESLOG_MAP_PROVIDER') ?? ($cartoApiKey ? 'carto' : 'esri');
+$mapProvider = $mapEnv('TESLOG_MAP_PROVIDER') ?? ($cartoApiKey !== null ? 'carto' : 'esri');
 
 $mapProviders = [
     // Keyless. Tiles are only served up to z16, so Leaflet upscales beyond that.

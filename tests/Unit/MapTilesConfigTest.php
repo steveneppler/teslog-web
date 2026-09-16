@@ -154,13 +154,43 @@ class MapTilesConfigTest extends TestCase
      */
     public function test_every_provider_links_its_attribution(): void
     {
-        foreach (['esri', 'carto', 'osm'] as $provider) {
-            $tiles = $this->mapTiles(['TESLOG_MAP_PROVIDER' => $provider]);
+        // CARTO needs a key here, or the fallback would quietly return Esri's tiles
+        // and this would never exercise CARTO's own attribution.
+        $env = [
+            'esri' => [],
+            'carto' => ['TESLOG_CARTO_API_KEY' => 'secret'],
+            'osm' => [],
+        ];
+
+        foreach ($env as $provider => $extra) {
+            $tiles = $this->mapTiles(['TESLOG_MAP_PROVIDER' => $provider] + $extra);
 
             $this->assertStringContainsString('<a href="http', $tiles['attribution'], "$provider attribution is not linked");
         }
 
+        $carto = $this->mapTiles(['TESLOG_MAP_PROVIDER' => 'carto', 'TESLOG_CARTO_API_KEY' => 'secret']);
+        $this->assertStringContainsString('cartocdn.com', $carto['light'], 'the CARTO case must not fall back to Esri');
+        $this->assertStringContainsString('carto.com/attributions', $carto['attribution']);
+
         $osm = $this->mapTiles(['TESLOG_MAP_PROVIDER' => 'osm']);
         $this->assertStringContainsString('openstreetmap.org/copyright', $osm['attribution']);
+    }
+
+    public function test_boolean_like_provider_is_not_mistaken_for_unset(): void
+    {
+        $tiles = $this->mapTiles([
+            'TESLOG_MAP_PROVIDER' => 'false',
+            'TESLOG_CARTO_API_KEY' => 'secret',
+        ]);
+
+        $this->assertStringContainsString('arcgisonline.com', $tiles['light'], '"false" is an unknown provider, not an unset one');
+    }
+
+    public function test_falsy_carto_api_key_still_selects_carto(): void
+    {
+        $tiles = $this->mapTiles(['TESLOG_CARTO_API_KEY' => '0']);
+
+        $this->assertStringContainsString('cartocdn.com', $tiles['light']);
+        $this->assertStringContainsString('api_key=0', $tiles['light']);
     }
 }
