@@ -172,10 +172,17 @@ class LifetimeMap extends Component
             $items[] = ['label' => 'Energy Added', 'value' => number_format($stats['energy_added'], 0) . ' kWh'];
         }
 
-        $names = $vehicles
-            ->whereIn('id', $vehicleIds)
-            ->map(fn ($v) => $v->name ?: $v->vin)
-            ->implode(' + ');
+        $selected = $vehicles->whereIn('id', $vehicleIds);
+
+        // Past a pair, names stop fitting the overlay card, so they give way to
+        // a count — the one figure that still reads at a glance.
+        if ($selected->count() > 2) {
+            $title = $selected->count() === $vehicles->count()
+                ? 'All ' . $selected->count() . ' vehicles'
+                : $selected->count() . ' vehicles';
+        } else {
+            $title = $selected->map(fn ($v) => $v->name ?: $v->vin)->implode(' + ');
+        }
 
         $range = $stats['first_drive'] && $stats['last_drive']
             ? Carbon::parse($stats['first_drive'])->tz($user->userTz())->format('M Y')
@@ -183,7 +190,7 @@ class LifetimeMap extends Component
             : null;
 
         return [
-            'title' => $names ?: 'No vehicles selected',
+            'title' => $title ?: 'No vehicles selected',
             'subtitle' => $range,
             'items' => $items,
         ];
