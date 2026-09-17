@@ -214,6 +214,8 @@
             var hintEl = hint.getContainer();
             var hideTimeout;
             function showHint() {
+                // Nothing to hint at while the guards are lifted (fullscreen).
+                if (map.__freePan) return;
                 hintEl.classList.add('visible');
                 clearTimeout(hideTimeout);
                 hideTimeout = setTimeout(function() { hintEl.classList.remove('visible'); }, 2500);
@@ -231,6 +233,7 @@
             }, { passive: true });
             container.addEventListener('mouseleave', function() {
                 hintEl.classList.remove('visible');
+                if (map.__freePan) return;
                 map.scrollWheelZoom.disable();
             });
             window.addEventListener('keydown', function(e) {
@@ -241,9 +244,30 @@
                 }
             });
             window.addEventListener('keyup', function() {
+                if (map.__freePan) return;
                 map.scrollWheelZoom.disable();
                 map.dragging.disable();
             });
+
+            // Fullscreen maps cover the page, so the scroll guard has nothing to
+            // protect and only gets in the way of panning around the route.
+            map.__setFreePan = function(enabled) {
+                map.__freePan = enabled;
+                if (enabled) {
+                    map.scrollWheelZoom.enable();
+                    map.dragging.enable();
+                    hintEl.classList.remove('visible');
+                } else {
+                    map.scrollWheelZoom.disable();
+                    map.dragging.disable();
+                }
+            };
+        };
+
+        window.setMapFreePan = function(map, enabled) {
+            if (map && typeof map.__setFreePan === 'function') {
+                map.__setFreePan(enabled);
+            }
         };
 
         // Chart.js theme helper
