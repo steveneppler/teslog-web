@@ -6,6 +6,7 @@ use App\Enums\ChargeType;
 use App\Models\Charge;
 use App\Models\Drive;
 use App\Models\DrivePoint;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Livewire\Component;
@@ -54,7 +55,12 @@ class LifetimeMap extends Component
         $stats = $this->buildStats($drives, $allCharges);
 
         if ($driveIds->isEmpty()) {
-            $this->dispatch('lifetime-map-updated', routes: [], charges: []);
+            $this->dispatch(
+                'lifetime-map-updated',
+                routes: [],
+                charges: [],
+                overlay: $this->buildOverlay($vehicles, $vehicleIds, $stats),
+            );
 
             return view('livewire.lifetime-map', [
                 'vehicles' => $vehicles,
@@ -125,13 +131,62 @@ class LifetimeMap extends Component
                 ->all();
         }
 
-        $this->dispatch('lifetime-map-updated', routes: $routes, charges: $chargeMarkers);
+        $this->dispatch(
+            'lifetime-map-updated',
+            routes: $routes,
+            charges: $chargeMarkers,
+            overlay: $this->buildOverlay($vehicles, $vehicleIds, $stats),
+        );
 
         return view('livewire.lifetime-map', [
             'vehicles' => $vehicles,
             'vehicleColorMap' => $vehicleColorMap,
             'stats' => $stats,
         ]);
+    }
+
+    /**
+     * Headline figures for the on-map overlay. Formatted here because the map
+     * wrapper is wire:ignore'd, so the overlay is drawn in JS rather than Blade.
+     */
+    private function buildOverlay($vehicles, $vehicleIds, array $stats): array
+    {
+        $user = Auth::user();
+
+        $items = [
+            ['label' => 'Distance', 'value' => number_format($user->convertDistance($stats['distance']), 0) . ' ' . $user->distanceUnit()],
+            ['label' => 'Drives', 'value' => number_format($stats['drives'])],
+            ['label' => 'Drive Time', 'value' => number_format($stats['drive_hours'], 0) . ' hrs'],
+            ['label' => 'Energy Used', 'value' => number_format($stats['energy_used'], 0) . ' kWh'],
+        ];
+
+        if ($stats['mi_per_kwh']) {
+            $items[] = [
+                'label' => 'Efficiency',
+                'value' => round($user->convertEfficiency(1000 / $stats['mi_per_kwh'])) . ' ' . $user->efficiencyUnit(),
+            ];
+        }
+
+        if ($stats['charges'] > 0) {
+            $items[] = ['label' => 'Charges', 'value' => number_format($stats['charges'])];
+            $items[] = ['label' => 'Energy Added', 'value' => number_format($stats['energy_added'], 0) . ' kWh'];
+        }
+
+        $names = $vehicles
+            ->whereIn('id', $vehicleIds)
+            ->map(fn ($v) => $v->name ?: $v->vin)
+            ->implode(' + ');
+
+        $range = $stats['first_drive'] && $stats['last_drive']
+            ? Carbon::parse($stats['first_drive'])->tz($user->userTz())->format('M Y')
+                . ' – ' . Carbon::parse($stats['last_drive'])->tz($user->userTz())->format('M Y')
+            : null;
+
+        return [
+            'title' => $names ?: 'No vehicles selected',
+            'subtitle' => $range,
+            'items' => $items,
+        ];
     }
 
     private function buildStats($drives, $charges): array

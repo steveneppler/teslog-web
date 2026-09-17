@@ -44,6 +44,14 @@
     {{-- Map --}}
     <div id="lifetime-map-wrapper" class="relative rounded-xl border border-border-default bg-surface p-2" wire:ignore>
         <div id="lifetime-map" style="height: calc(100vh - 20rem); width: 100%; background: var(--theme-surface); border-radius: 0.5rem;"></div>
+        {{-- Stats overlay — filled from the map event, since the wrapper is wire:ignore'd --}}
+        <div data-stats-overlay
+            class="pointer-events-none absolute right-4 top-4 z-[9998] hidden max-w-[80%] rounded-xl border border-border-default bg-surface/85 px-4 py-3 shadow-lg backdrop-blur">
+            <p data-overlay-title class="font-semibold text-text-primary"></p>
+            <p data-overlay-subtitle class="text-xs text-text-muted"></p>
+            <div data-overlay-items class="mt-2 grid grid-cols-2 gap-x-5 gap-y-1.5"></div>
+        </div>
+
         {{-- Display options — kept inside the wrapper so they stay reachable in fullscreen --}}
         <div data-options-panel
             class="absolute bottom-16 right-4 z-[10000] hidden w-64 rounded-xl border border-border-default bg-surface p-4 shadow-lg">
@@ -67,6 +75,12 @@
             </div>
 
             <label class="mt-4 flex cursor-pointer items-center gap-2 text-sm">
+                <input type="checkbox" data-opt-stats-overlay
+                    class="rounded border-border-strong bg-surface-alt text-red-500 focus:ring-red-500">
+                <span class="text-text-secondary">Stats overlay</span>
+            </label>
+
+            <label class="mt-3 flex cursor-pointer items-center gap-2 text-sm">
                 <input type="checkbox" data-opt-single-color
                     class="rounded border-border-strong bg-surface-alt text-red-500 focus:ring-red-500">
                 <span class="text-text-secondary">Single color for all routes</span>
@@ -195,6 +209,7 @@
         opacity: 0.6,
         singleColor: false,
         color: '#e82127',
+        statsOverlay: false,
     };
     var options = Object.assign({}, DEFAULT_OPTIONS);
 
@@ -235,7 +250,50 @@
         });
     }
 
-    function initLifetimeMap(routes, charges) {
+    var __overlayData = null;
+
+    function renderStatsOverlay(overlay) {
+        if (overlay) __overlayData = overlay;
+        if (!overlayEl) return;
+
+        var data = __overlayData;
+        overlayEl.classList.toggle('hidden', !options.statsOverlay || !data);
+        if (!options.statsOverlay || !data) return;
+
+        // Titles and units come from user-entered vehicle names, so build the
+        // overlay as text nodes rather than markup.
+        overlayTitle.textContent = data.title || '';
+        overlaySubtitle.textContent = data.subtitle || '';
+        overlaySubtitle.classList.toggle('hidden', !data.subtitle);
+
+        overlayItems.textContent = '';
+        (data.items || []).forEach(function(item) {
+            var cell = document.createElement('div');
+
+            var label = document.createElement('p');
+            label.className = 'text-[10px] uppercase tracking-wide text-text-subtle';
+            label.textContent = item.label;
+
+            var value = document.createElement('p');
+            value.className = 'font-semibold leading-tight text-text-primary';
+            value.textContent = item.value;
+
+            cell.appendChild(label);
+            cell.appendChild(value);
+            overlayItems.appendChild(cell);
+        });
+
+        // Fullscreen is watched from further away, so the overlay scales up with it.
+        overlayEl.classList.toggle('text-base', isFullscreen);
+        overlayEl.classList.toggle('px-6', isFullscreen);
+        overlayEl.classList.toggle('py-5', isFullscreen);
+        overlayTitle.classList.toggle('text-2xl', isFullscreen);
+        overlayItems.classList.toggle('gap-x-8', isFullscreen);
+    }
+
+    function initLifetimeMap(routes, charges, overlay) {
+        renderStatsOverlay(overlay);
+
         if (!window.L) return;
 
         var el = document.getElementById('lifetime-map');
@@ -324,6 +382,7 @@
         window.setMapFreePan && window.setMapFreePan(__lifetimeMap, isFullscreen);
         syncOptionsPanel();
         applyRouteStyles();
+        renderStatsOverlay();
         setTimeout(function() { __lifetimeMap && __lifetimeMap.invalidateSize(); }, 200);
     }
 
@@ -340,7 +399,12 @@
     var singleColorInput = wrapper.querySelector('[data-opt-single-color]');
     var colorInput = wrapper.querySelector('[data-opt-color]');
     var colorControls = wrapper.querySelector('[data-color-controls]');
+    var statsOverlayInput = wrapper.querySelector('[data-opt-stats-overlay]');
     var resetBtn = wrapper.querySelector('[data-options-reset]');
+    var overlayEl = wrapper.querySelector('[data-stats-overlay]');
+    var overlayTitle = wrapper.querySelector('[data-overlay-title]');
+    var overlaySubtitle = wrapper.querySelector('[data-overlay-subtitle]');
+    var overlayItems = wrapper.querySelector('[data-overlay-items]');
 
     loadOptions();
 
@@ -350,6 +414,7 @@
         weightLabel.textContent = isFullscreen ? 'Line thickness (fullscreen)' : 'Line thickness';
         opacityInput.value = Math.round(options.opacity * 100);
         opacityValue.textContent = Math.round(options.opacity * 100) + '%';
+        statsOverlayInput.checked = options.statsOverlay;
         singleColorInput.checked = options.singleColor;
         colorInput.value = options.color;
         colorControls.classList.toggle('hidden', !options.singleColor);
@@ -360,6 +425,7 @@
         saveOptions();
         syncOptionsPanel();
         applyRouteStyles();
+        renderStatsOverlay();
     }
 
     syncOptionsPanel();
@@ -383,6 +449,10 @@
 
     opacityInput.addEventListener('input', function() {
         updateOptions({ opacity: parseInt(this.value, 10) / 100 });
+    });
+
+    statsOverlayInput.addEventListener('change', function() {
+        updateOptions({ statsOverlay: this.checked });
     });
 
     singleColorInput.addEventListener('change', function() {
@@ -415,7 +485,7 @@
     document.addEventListener('keydown', onKeydown);
 
     $wire.on('lifetime-map-updated', function(params) {
-        setTimeout(function() { initLifetimeMap(params.routes, params.charges); }, 100);
+        setTimeout(function() { initLifetimeMap(params.routes, params.charges, params.overlay); }, 100);
     });
 
     // Cleanup on Livewire navigation
