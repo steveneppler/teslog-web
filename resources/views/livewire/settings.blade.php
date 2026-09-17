@@ -72,6 +72,52 @@
             </div>
         </div>
 
+        {{-- Maps --}}
+        <div class="rounded-xl border border-border-default bg-surface p-6">
+            <h3 class="mb-1 text-lg font-semibold">Maps</h3>
+            <p class="mb-4 text-sm text-text-secondary">
+                Pick the basemap used for drive, charge and place maps. Changes apply as soon as you save — no container restart needed.
+            </p>
+
+            @php $providers = $this->mapProviders; @endphp
+
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-text-secondary">Basemap provider</label>
+                    <select wire:model.live="map_provider"
+                        class="mt-1 block w-full rounded-lg border border-border-input bg-surface-alt px-4 py-2 text-text-primary focus:border-red-500 focus:outline-none">
+                        <option value="">Server default ({{ $providers[$this->serverDefaultProvider]['label'] ?? $this->serverDefaultProvider }})</option>
+                        @foreach($providers as $key => $provider)
+                            <option value="{{ $key }}">{{ $provider['label'] }}</option>
+                        @endforeach
+                    </select>
+                    @if($map_provider !== '' && isset($providers[$map_provider]))
+                        <p class="mt-2 text-sm text-text-secondary">{{ $providers[$map_provider]['description'] }}</p>
+                    @endif
+                    @error('map_provider')
+                        <p class="mt-1 text-sm text-red-400">{{ $message }}</p>
+                    @enderror
+                </div>
+
+                @if(\App\Support\MapTiles::requiresApiKey($map_provider))
+                    <div>
+                        <label class="block text-sm font-medium text-text-secondary">{{ $providers[$map_provider]['label'] }} API key</label>
+                        <input type="password" wire:model="map_api_key" autocomplete="off"
+                            class="mt-1 block w-full rounded-lg border border-border-input bg-surface-alt px-4 py-2 text-text-primary focus:border-red-500 focus:outline-none">
+                        <p class="mt-1 text-sm text-text-secondary">
+                            Stored encrypted and used only for your own map tiles. Keys are kept per
+                            provider, so switching away and back does not mean retyping one.
+                            <a href="{{ $providers[$map_provider]['api_key_url'] }}" target="_blank" rel="noopener"
+                                class="text-red-400 hover:underline">Get a key</a>.
+                        </p>
+                        @error('map_api_key')
+                            <p class="mt-1 text-sm text-red-400">{{ $message }}</p>
+                        @enderror
+                    </div>
+                @endif
+            </div>
+        </div>
+
         {{-- Tesla Connection --}}
         <div class="rounded-xl border border-border-default bg-surface p-6">
             <h3 class="mb-4 text-lg font-semibold">Tesla Connection</h3>
@@ -394,3 +440,13 @@
         </div>
     </div>
 </div>
+
+@script
+<script>
+    // Leaflet fixes tile URLs, zoom limits and attribution when a layer is built,
+    // so switching providers is applied by reloading rather than patching in place.
+    $wire.on('map-settings-changed', function () {
+        setTimeout(function () { window.location.reload(); }, 800);
+    });
+</script>
+@endscript

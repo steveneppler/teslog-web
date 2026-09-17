@@ -140,7 +140,7 @@
         };
 
         // Map tile URL helper for theme-aware maps
-        window.__mapTiles = @json(config('teslog.map_tiles'));
+        window.__mapTiles = @json(\App\Support\MapTiles::forUser(auth()->user()));
         window.getMapTileUrl = function() {
             var isDark = document.documentElement.classList.contains('dark') ||
                 (!document.documentElement.classList.contains('light') &&
@@ -157,6 +157,10 @@
                 maxNativeZoom: tiles.max_native_zoom,
                 attribution: tiles.attribution,
             };
+            // Some providers (MapTiler) serve 512px tiles, which need a matching
+            // zoom offset or every map renders one zoom level too far in.
+            if (tiles.tile_size) { opts.tileSize = tiles.tile_size; }
+            if (tiles.zoom_offset) { opts.zoomOffset = tiles.zoom_offset; }
             for (var key in (options || {})) { opts[key] = options[key]; }
             if (map.attributionControl) {
                 map.attributionControl.setPrefix('');

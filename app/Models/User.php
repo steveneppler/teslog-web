@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\MapTiles;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
@@ -26,11 +27,14 @@ class User extends Authenticatable
         'currency',
         'theme',
         'debug_mode',
+        'map_provider',
+        'map_api_keys',
     ];
 
     protected $hidden = [
         'password',
         'remember_token',
+        'map_api_keys',
     ];
 
     protected function casts(): array
@@ -39,6 +43,7 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'debug_mode' => 'boolean',
+            'map_api_keys' => 'encrypted:array',
         ];
     }
 
@@ -161,6 +166,42 @@ class User extends Authenticatable
     public function userTz(): string
     {
         return $this->timezone ?? 'UTC';
+    }
+
+    /**
+     * The basemap tiles this user sees — their own provider choice, or the
+     * env-configured default until they pick one on the settings page.
+     */
+    public function mapTiles(): array
+    {
+        return MapTiles::forUser($this);
+    }
+
+    /**
+     * A key is kept per provider, so switching away and back does not mean
+     * retyping it.
+     */
+    public function mapApiKey(?string $provider): ?string
+    {
+        if ($provider === null) {
+            return null;
+        }
+
+        return ($this->map_api_keys ?? [])[$provider] ?? null;
+    }
+
+    /** Store (or, with a null key, forget) this user's key for one provider. */
+    public function setMapApiKey(string $provider, ?string $key): void
+    {
+        $keys = $this->map_api_keys ?? [];
+
+        if ($key === null) {
+            unset($keys[$provider]);
+        } else {
+            $keys[$provider] = $key;
+        }
+
+        $this->map_api_keys = $keys ?: null;
     }
 
     public function vehicles(): HasMany
