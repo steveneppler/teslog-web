@@ -33,6 +33,18 @@ class LifetimeMapOptionsTest extends TestCase
             ->assertSee('data-color-preset="#e82127"', false);
     }
 
+    public function test_the_option_controls_carry_accessible_names(): void
+    {
+        $user = User::factory()->create();
+
+        Livewire::actingAs($user)->test(LifetimeMap::class)
+            ->assertSee('for="lifetime-map-weight"', false)
+            ->assertSee('id="lifetime-map-weight"', false)
+            ->assertSee('for="lifetime-map-opacity"', false)
+            ->assertSee('id="lifetime-map-opacity"', false)
+            ->assertSee('aria-label="Route color"', false);
+    }
+
     public function test_it_dispatches_overlay_stats_with_the_map_data(): void
     {
         $user = User::factory()->create(['distance_unit' => 'mi']);

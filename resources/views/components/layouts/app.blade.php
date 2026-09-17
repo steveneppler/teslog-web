@@ -214,6 +214,8 @@
             var hintEl = hint.getContainer();
             var hideTimeout;
             function showHint() {
+                // Nothing to hint at while the guards are lifted (fullscreen).
+                if (map.__freePan) return;
                 hintEl.classList.add('visible');
                 clearTimeout(hideTimeout);
                 hideTimeout = setTimeout(function() { hintEl.classList.remove('visible'); }, 2500);

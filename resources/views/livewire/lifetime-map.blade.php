@@ -60,16 +60,16 @@
                 <button type="button" data-options-reset class="text-xs text-text-muted underline transition hover:text-text-secondary">Reset</button>
             </div>
 
-            <label class="block text-xs text-text-subtle" data-weight-label>Line thickness</label>
+            <label for="lifetime-map-weight" class="block text-xs text-text-subtle" data-weight-label>Line thickness</label>
             <div class="mt-1 flex items-center gap-2">
-                <input type="range" data-opt-weight min="1" max="12" step="1"
+                <input type="range" id="lifetime-map-weight" data-opt-weight min="1" max="12" step="1"
                     class="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-surface-alt accent-red-500">
                 <span data-weight-value class="w-8 shrink-0 text-right text-xs tabular-nums text-text-muted"></span>
             </div>
 
-            <label class="mt-3 block text-xs text-text-subtle">Line opacity</label>
+            <label for="lifetime-map-opacity" class="mt-3 block text-xs text-text-subtle">Line opacity</label>
             <div class="mt-1 flex items-center gap-2">
-                <input type="range" data-opt-opacity min="10" max="100" step="5"
+                <input type="range" id="lifetime-map-opacity" data-opt-opacity min="10" max="100" step="5"
                     class="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-surface-alt accent-red-500">
                 <span data-opacity-value class="w-8 shrink-0 text-right text-xs tabular-nums text-text-muted"></span>
             </div>
@@ -88,13 +88,14 @@
 
             <div data-color-controls class="mt-2">
                 <div class="flex items-center gap-2">
-                    <input type="color" data-opt-color
+                    <input type="color" data-opt-color aria-label="Route color"
                         class="h-8 w-10 cursor-pointer rounded border border-border-input bg-surface p-0.5">
                     <div class="flex flex-wrap items-center gap-1.5">
                         @foreach(['#e82127', '#ffffff', '#38bdf8', '#22c55e', '#f59e0b', '#a855f7'] as $preset)
                             <button type="button" data-color-preset="{{ $preset }}"
                                 class="h-5 w-5 rounded-full border border-border-strong transition hover:scale-110"
-                                style="background: {{ $preset }}" title="{{ $preset }}"></button>
+                                style="background: {{ $preset }}" title="{{ $preset }}"
+                                aria-label="Use route color {{ $preset }}"></button>
                         @endforeach
                     </div>
                 </div>
