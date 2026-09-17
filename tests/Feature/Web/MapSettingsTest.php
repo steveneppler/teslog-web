@@ -6,6 +6,7 @@ use App\Livewire\Settings;
 use App\Models\User;
 use App\Support\MapTiles;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
 use Livewire\Livewire;
 use Tests\TestCase;
@@ -58,7 +59,7 @@ class MapSettingsTest extends TestCase
 
         $tiles = $user->mapTiles();
         $this->assertSame('carto', $tiles['provider']);
-        $this->assertStringContainsString('api_key=secret', $tiles['light']);
+        $this->assertStringContainsString('?key=secret', $tiles['light']);
     }
 
     /** A key belonging to another provider must not be sent to the selected one. */
@@ -163,7 +164,7 @@ class MapSettingsTest extends TestCase
         $user = User::first()->fresh();
         $this->assertSame('0', $user->mapApiKey('carto'));
         $this->assertSame('carto', $user->mapTiles()['provider']);
-        $this->assertStringContainsString('api_key=0', $user->mapTiles()['light']);
+        $this->assertStringContainsString('?key=0', $user->mapTiles()['light']);
     }
 
     /** Switching providers must not discard the key for the one left behind. */
@@ -282,6 +283,26 @@ class MapSettingsTest extends TestCase
         $this->get(route('settings'))
             ->assertOk()
             ->assertSee('tile.openstreetmap.org', false);
+    }
+
+    /**
+     * The migration writes Crypt::encryptString(json_encode(...)). The
+     * encrypted:array cast must read exactly that representation, or keys
+     * carried over on upgrade would be lost.
+     */
+    public function test_the_cast_reads_the_format_the_migration_writes(): void
+    {
+        $user = User::factory()->create();
+
+        DB::table('users')->where('id', $user->id)->update([
+            'map_api_keys' => Crypt::encryptString(json_encode(['carto' => 'migrated-key'])),
+            'map_provider' => 'carto',
+        ]);
+
+        $user = $user->fresh();
+        $this->assertSame(['carto' => 'migrated-key'], $user->map_api_keys);
+        $this->assertSame('migrated-key', $user->mapApiKey('carto'));
+        $this->assertStringContainsString('?key=migrated-key', $user->mapTiles()['light']);
     }
 
     public function test_stored_keys_are_not_serialized_with_the_user(): void

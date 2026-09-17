@@ -52,8 +52,8 @@ class MapTilesConfigTest extends TestCase
         $tiles = $this->mapTiles(['TESLOG_CARTO_API_KEY' => 'secret']);
 
         $this->assertStringContainsString('cartocdn.com', $tiles['light']);
-        $this->assertStringContainsString('api_key=secret', $tiles['light']);
-        $this->assertStringContainsString('api_key=secret', $tiles['dark']);
+        $this->assertStringContainsString('?key=secret', $tiles['light']);
+        $this->assertStringContainsString('?key=secret', $tiles['dark']);
     }
 
     public function test_blank_provider_still_allows_automatic_carto_selection(): void
@@ -77,7 +77,7 @@ class MapTilesConfigTest extends TestCase
     {
         $tiles = $this->mapTiles(['TESLOG_CARTO_API_KEY' => 'a b&c']);
 
-        $this->assertStringContainsString('api_key=a%20b%26c', $tiles['light']);
+        $this->assertStringContainsString('?key=a%20b%26c', $tiles['light']);
     }
 
     public function test_explicit_provider_wins_over_the_carto_key(): void
@@ -123,7 +123,7 @@ class MapTilesConfigTest extends TestCase
         $tiles = $this->mapTiles(['TESLOG_MAP_PROVIDER' => 'carto']);
 
         $this->assertStringContainsString('arcgisonline.com', $tiles['light']);
-        $this->assertStringNotContainsString('api_key=', $tiles['light']);
+        $this->assertStringNotContainsString('key=', $tiles['light']);
     }
 
     public function test_tile_urls_never_carry_an_empty_api_key(): void
@@ -203,7 +203,7 @@ class MapTilesConfigTest extends TestCase
         $tiles = $this->mapTiles(['TESLOG_CARTO_API_KEY' => '0']);
 
         $this->assertStringContainsString('cartocdn.com', $tiles['light']);
-        $this->assertStringContainsString('api_key=0', $tiles['light']);
+        $this->assertStringContainsString('?key=0', $tiles['light']);
     }
 
     public function test_resolved_tiles_name_the_effective_provider(): void
@@ -258,17 +258,25 @@ class MapTilesConfigTest extends TestCase
     public function test_each_keyed_provider_carries_the_key_in_its_own_parameter(): void
     {
         $expected = [
-            'carto' => 'api_key=secret',
-            'stadia' => 'api_key=secret',
-            'maptiler' => 'key=secret',
-            'thunderforest' => 'apikey=secret',
+            'carto' => 'key',
+            'stadia' => 'api_key',
+            'maptiler' => 'key',
+            'thunderforest' => 'apikey',
         ];
+
+        $this->assertSame(MapTiles::keyedNames(), array_keys($expected), 'a keyed provider is missing its parameter name');
 
         foreach ($expected as $provider => $parameter) {
             $tiles = MapTiles::resolve($provider, 'secret');
 
             foreach (['light', 'dark'] as $variant) {
-                $this->assertStringContainsString($parameter, $tiles[$variant], "$provider $variant tiles");
+                // Anchored to a query-string boundary, so `?key=` is not satisfied
+                // by `?api_key=` — the two are different parameters.
+                $this->assertMatchesRegularExpression(
+                    '/[?&]'.preg_quote($parameter, '/').'=secret(&|$)/',
+                    $tiles[$variant],
+                    "$provider $variant tiles do not carry the key as ?$parameter="
+                );
             }
         }
     }
@@ -356,7 +364,7 @@ class MapTilesConfigTest extends TestCase
             'TESLOG_CARTO_API_KEY' => 'older',
         ]);
 
-        $this->assertStringContainsString('api_key=newer', $tiles['light']);
+        $this->assertStringContainsString('?key=newer', $tiles['light']);
     }
 
     public function test_every_offered_provider_is_selectable_and_labelled(): void
@@ -385,6 +393,6 @@ class MapTilesConfigTest extends TestCase
     {
         $encoded = json_encode(MapTiles::options());
 
-        $this->assertStringNotContainsString('api_key=', $encoded);
+        $this->assertStringNotContainsString('key=', $encoded);
     }
 }
