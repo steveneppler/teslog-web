@@ -25,6 +25,10 @@ class CheckTelemetryHealth extends Command
             ->get();
 
         foreach ($vehicles as $vehicle) {
+            if ($vehicle->telemetry_fields === []) {
+                continue;
+            }
+
             $vehicleWarnings = [];
 
             // Check token expiry
@@ -114,6 +118,10 @@ class CheckTelemetryHealth extends Command
         // Detect idle → sleeping transitions
         // Fleet Telemetry stops sending data when the car sleeps, so we detect it by timeout
         foreach ($vehicles as $vehicle) {
+            if ($vehicle->telemetry_fields === []) {
+                continue;
+            }
+
             $latestState = VehicleState::where('vehicle_id', $vehicle->id)
                 ->orderByDesc('timestamp')
                 ->first();

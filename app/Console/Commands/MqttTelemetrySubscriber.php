@@ -82,6 +82,14 @@ class MqttTelemetrySubscriber extends Command
 
         // Location arrives as JSON with latitude/longitude
         if ($fieldName === 'Location') {
+            // Keep the complete structured signal for raw history and exports,
+            // in addition to the coordinates consumed by existing trip processing.
+            $this->batch[] = [
+                'vin' => $vin,
+                'timestamp' => $timestamp,
+                'field_name' => $fieldName,
+                'value' => $message,
+            ];
             $location = json_decode($message, true);
             if (is_array($location)) {
                 if (isset($location['latitude'])) {

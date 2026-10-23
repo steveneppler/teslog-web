@@ -1,0 +1,1014 @@
+{
+  "ACChargingEnergyIn": {
+    "category": "Charging",
+    "type": "real"
+  },
+  "ACChargingPower": {
+    "category": "Charging",
+    "type": "real"
+  },
+  "AutoSeatClimateLeft": {
+    "category": "Climate",
+    "type": "boolean"
+  },
+  "AutoSeatClimateRight": {
+    "category": "Climate",
+    "type": "boolean"
+  },
+  "AutomaticBlindSpotCamera": {
+    "category": "Safety",
+    "type": "boolean"
+  },
+  "AutomaticEmergencyBrakingOff": {
+    "category": "Safety",
+    "type": "boolean"
+  },
+  "BMSState": {
+    "category": "Charging",
+    "type": "BMSStateValue enum"
+  },
+  "BatteryHeaterOn": {
+    "category": "Charging",
+    "type": "boolean"
+  },
+  "BatteryLevel": {
+    "category": "Charging",
+    "type": "real"
+  },
+  "BlindSpotCollisionWarningChime": {
+    "category": "Safety",
+    "type": "boolean"
+  },
+  "BmsFullchargecomplete": {
+    "category": "Charging",
+    "type": "boolean"
+  },
+  "BrakePedal": {
+    "category": "Driving",
+    "type": "boolean"
+  },
+  "BrakePedalPos": {
+    "category": "Driving",
+    "type": "real"
+  },
+  "BrickSocMinPercent": {
+    "category": "Charging",
+    "type": "real"
+  },
+  "BrickVoltageMax": {
+    "category": "Charging",
+    "type": "real"
+  },
+  "BrickVoltageMin": {
+    "category": "Charging",
+    "type": "real"
+  },
+  "Cabin12vPortKeepOn": {
+    "category": "User Preference",
+    "type": "boolean"
+  },
+  "Cabin48vPortKeepOn": {
+    "category": "User Preference",
+    "type": "boolean"
+  },
+  "CabinOverheatProtectionMode": {
+    "category": "Climate",
+    "type": "CabinOverheatProtectionModeState enum"
+  },
+  "CabinOverheatProtectionTemperatureLimit": {
+    "category": "Climate",
+    "type": "ClimateOverheatProtectionTempLimit enum"
+  },
+  "CarType": {
+    "category": "Vehicle Configuration",
+    "type": "enum"
+  },
+  "CenterDisplay": {
+    "category": "Vehicle State",
+    "type": "DisplayState enum"
+  },
+  "ChargeAmps": {
+    "category": "Charging",
+    "type": "real"
+  },
+  "ChargeCurrentRequest": {
+    "category": "Charging",
+    "type": "integer"
+  },
+  "ChargeCurrentRequestMax": {
+    "category": "Charging",
+    "type": "integer"
+  },
+  "ChargeEnableRequest": {
+    "category": "Charging",
+    "type": "boolean"
+  },
+  "ChargeLimitSoc": {
+    "category": "Charging",
+    "type": "integer"
+  },
+  "ChargePort": {
+    "category": "Charging",
+    "type": "ChargePortValue enum"
+  },
+  "ChargePortColdWeatherMode": {
+    "category": "Charging",
+    "type": "boolean"
+  },
+  "ChargePortDoorOpen": {
+    "category": "Charging",
+    "type": "boolean"
+  },
+  "ChargePortLatch": {
+    "category": "Charging",
+    "type": "ChargePortLatchValue enum"
+  },
+  "ChargeRateMilePerHour": {
+    "category": "Charging",
+    "type": "real"
+  },
+  "ChargeState": {
+    "category": "Charging",
+    "type": "string"
+  },
+  "ChargerPhases": {
+    "category": "Charging",
+    "type": "integer"
+  },
+  "ChargerVoltage": {
+    "category": "Charging",
+    "type": "real"
+  },
+  "ChargingCableType": {
+    "category": "Charging",
+    "type": "CableType enum"
+  },
+  "ClimateKeeperMode": {
+    "category": "Climate",
+    "type": "ClimateKeeperModeState enum"
+  },
+  "ClimateSeatCoolingFrontLeft": {
+    "category": "Climate",
+    "type": "integer"
+  },
+  "ClimateSeatCoolingFrontRight": {
+    "category": "Climate",
+    "type": "integer"
+  },
+  "CruiseFollowDistance": {
+    "category": "Safety",
+    "type": "FollowDistance enum"
+  },
+  "CruiseSetSpeed": {
+    "category": "Driving",
+    "type": "real"
+  },
+  "CurrentLimitMph": {
+    "category": "Vehicle State",
+    "type": "real"
+  },
+  "DCChargingEnergyIn": {
+    "category": "Charging",
+    "type": "real"
+  },
+  "DCChargingPower": {
+    "category": "Charging",
+    "type": "real"
+  },
+  "DCDCEnable": {
+    "category": "Charging",
+    "type": "boolean"
+  },
+  "DefrostForPreconditioning": {
+    "category": "Climate",
+    "type": "boolean"
+  },
+  "DefrostMode": {
+    "category": "Climate",
+    "type": "DefrostModeState enum"
+  },
+  "DestinationLocation": {
+    "category": "Location",
+    "type": "Location"
+  },
+  "DestinationName": {
+    "category": "Location",
+    "type": "string"
+  },
+  "DetailedChargeState": {
+    "category": "Charging",
+    "type": "DetailedChargeStateValue enum"
+  },
+  "DiAxleSpeedF": {
+    "category": "Powertrain",
+    "type": "real"
+  },
+  "DiAxleSpeedR": {
+    "category": "Powertrain",
+    "type": "real"
+  },
+  "DiAxleSpeedREL": {
+    "category": "Powertrain",
+    "type": "real"
+  },
+  "DiAxleSpeedRER": {
+    "category": "Powertrain",
+    "type": "real"
+  },
+  "DiHeatsinkTF": {
+    "category": "Powertrain",
+    "type": "real"
+  },
+  "DiHeatsinkTR": {
+    "category": "Powertrain",
+    "type": "real"
+  },
+  "DiHeatsinkTREL": {
+    "category": "Powertrain",
+    "type": "real"
+  },
+  "DiHeatsinkTRER": {
+    "category": "Powertrain",
+    "type": "real"
+  },
+  "DiInverterTF": {
+    "category": "Powertrain",
+    "type": "real"
+  },
+  "DiInverterTR": {
+    "category": "Powertrain",
+    "type": "real"
+  },
+  "DiInverterTREL": {
+    "category": "Powertrain",
+    "type": "real"
+  },
+  "DiInverterTRER": {
+    "category": "Powertrain",
+    "type": "real"
+  },
+  "DiMotorCurrentF": {
+    "category": "Powertrain",
+    "type": "real"
+  },
+  "DiMotorCurrentR": {
+    "category": "Powertrain",
+    "type": "real"
+  },
+  "DiMotorCurrentREL": {
+    "category": "Powertrain",
+    "type": "real"
+  },
+  "DiMotorCurrentRER": {
+    "category": "Powertrain",
+    "type": "real"
+  },
+  "DiSlaveTorqueCmd": {
+    "category": "Powertrain",
+    "type": "real"
+  },
+  "DiStateF": {
+    "category": "Powertrain",
+    "type": "DriveInverterState enum"
+  },
+  "DiStateR": {
+    "category": "Powertrain",
+    "type": "DriveInverterState enum"
+  },
+  "DiStateREL": {
+    "category": "Powertrain",
+    "type": "DriveInverterState enum"
+  },
+  "DiStateRER": {
+    "category": "Powertrain",
+    "type": "DriveInverterState enum"
+  },
+  "DiStatorTempF": {
+    "category": "Powertrain",
+    "type": "real"
+  },
+  "DiStatorTempR": {
+    "category": "Powertrain",
+    "type": "real"
+  },
+  "DiStatorTempREL": {
+    "category": "Powertrain",
+    "type": "real"
+  },
+  "DiStatorTempRER": {
+    "category": "Powertrain",
+    "type": "real"
+  },
+  "DiTorqueActualF": {
+    "category": "Powertrain",
+    "type": "real"
+  },
+  "DiTorqueActualR": {
+    "category": "Powertrain",
+    "type": "real"
+  },
+  "DiTorqueActualREL": {
+    "category": "Powertrain",
+    "type": "real"
+  },
+  "DiTorqueActualRER": {
+    "category": "Powertrain",
+    "type": "real"
+  },
+  "DiTorquemotor": {
+    "category": "Powertrain",
+    "type": "real"
+  },
+  "DiVBatF": {
+    "category": "Powertrain",
+    "type": "real"
+  },
+  "DiVBatR": {
+    "category": "Powertrain",
+    "type": "real"
+  },
+  "DiVBatREL": {
+    "category": "Powertrain",
+    "type": "real"
+  },
+  "DiVBatRER": {
+    "category": "Powertrain",
+    "type": "real"
+  },
+  "DoorState": {
+    "category": "Vehicle State",
+    "type": "Doors enum"
+  },
+  "DriveRail": {
+    "category": "Driving",
+    "type": "boolean"
+  },
+  "DriverSeatBelt": {
+    "category": "Safety",
+    "type": "boolean"
+  },
+  "DriverSeatOccupied": {
+    "category": "Vehicle State",
+    "type": "boolean"
+  },
+  "EfficiencyPackage": {
+    "category": "Vehicle Configuration",
+    "type": "string"
+  },
+  "EmergencyLaneDepartureAvoidance": {
+    "category": "Safety",
+    "type": "boolean"
+  },
+  "EnergyRemaining": {
+    "category": "Charging",
+    "type": "real"
+  },
+  "EstBatteryRange": {
+    "category": "Charging",
+    "type": "real"
+  },
+  "EstimatedHoursToChargeTermination": {
+    "category": "Charging",
+    "type": "real"
+  },
+  "EuropeVehicle": {
+    "category": "Vehicle Configuration",
+    "type": "boolean"
+  },
+  "ExpectedEnergyPercentAtTripArrival": {
+    "category": "Charging",
+    "type": "integer"
+  },
+  "ExteriorColor": {
+    "category": "Vehicle Configuration",
+    "type": "string"
+  },
+  "FastChargerPresent": {
+    "category": "Charging",
+    "type": "boolean"
+  },
+  "FastChargerType": {
+    "category": "Charging",
+    "type": "FastCharger enum"
+  },
+  "FdWindow": {
+    "category": "Vehicle State",
+    "type": "WindowState enum"
+  },
+  "ForwardCollisionWarning": {
+    "category": "Safety",
+    "type": "ForwardCollisionSensitivity enum"
+  },
+  "FpWindow": {
+    "category": "Vehicle State",
+    "type": "WindowState enum"
+  },
+  "Gear": {
+    "category": "Driving",
+    "type": "ShiftState enum"
+  },
+  "GpsAccuracyMeters": {
+    "category": "Location",
+    "type": "real"
+  },
+  "GpsHeading": {
+    "category": "Location",
+    "type": "real"
+  },
+  "GpsState": {
+    "category": "Location",
+    "type": "boolean"
+  },
+  "GradeEstimatePercent": {
+    "category": "Driving",
+    "type": "real"
+  },
+  "GuestModeEnabled": {
+    "category": "Vehicle State",
+    "type": "boolean"
+  },
+  "GuestModeMobileAccessState": {
+    "category": "Vehicle State",
+    "type": "GuestModeMobileAccess enum"
+  },
+  "HomelinkDeviceCount": {
+    "category": "Vehicle State",
+    "type": "integer"
+  },
+  "HomelinkNearby": {
+    "category": "Vehicle State",
+    "type": "boolean"
+  },
+  "HvacACEnabled": {
+    "category": "Climate",
+    "type": "boolean"
+  },
+  "HvacAutoMode": {
+    "category": "Climate",
+    "type": "HvacAutoModeState enum"
+  },
+  "HvacFanSpeed": {
+    "category": "Climate",
+    "type": "integer"
+  },
+  "HvacFanStatus": {
+    "category": "Climate",
+    "type": "integer"
+  },
+  "HvacLeftTemperatureRequest": {
+    "category": "Climate",
+    "type": "real"
+  },
+  "HvacPower": {
+    "category": "Climate",
+    "type": "HvacPowerState enum"
+  },
+  "HvacRightTemperatureRequest": {
+    "category": "Climate",
+    "type": "real"
+  },
+  "HvacSteeringWheelHeatAuto": {
+    "category": "Climate",
+    "type": "boolean"
+  },
+  "HvacSteeringWheelHeatLevel": {
+    "category": "Climate",
+    "type": "integer"
+  },
+  "Hvil": {
+    "category": "Powertrain",
+    "type": "HvilStatus enum"
+  },
+  "IdealBatteryRange": {
+    "category": "Charging",
+    "type": "real"
+  },
+  "InsideTemp": {
+    "category": "Climate",
+    "type": "real"
+  },
+  "IsolationResistance": {
+    "category": "Service",
+    "type": "real"
+  },
+  "LaneDepartureAvoidance": {
+    "category": "Safety",
+    "type": "LaneAssistLevel enum"
+  },
+  "LateralAcceleration": {
+    "category": "Driving",
+    "type": "real"
+  },
+  "LifetimeEnergyChargedKwh": {
+    "category": "Charging",
+    "type": "real"
+  },
+  "LifetimeEnergyGainedRegen": {
+    "category": "Driving",
+    "type": "real"
+  },
+  "LifetimeEnergyUsed": {
+    "category": "Charging",
+    "type": "real"
+  },
+  "LifetimeEnergyUsedDrive": {
+    "category": "Driving",
+    "type": "real"
+  },
+  "LightsHazardsActive": {
+    "category": "Vehicle State",
+    "type": "boolean"
+  },
+  "LightsHighBeams": {
+    "category": "Vehicle State",
+    "type": "boolean"
+  },
+  "LightsTurnSignal": {
+    "category": "Vehicle State",
+    "type": "TurnSignalState enum"
+  },
+  "LocatedAtFavorite": {
+    "category": "Location",
+    "type": "boolean"
+  },
+  "LocatedAtHome": {
+    "category": "Location",
+    "type": "boolean"
+  },
+  "LocatedAtWork": {
+    "category": "Location",
+    "type": "boolean"
+  },
+  "Location": {
+    "category": "Location",
+    "type": "Location"
+  },
+  "Locked": {
+    "category": "Safety",
+    "type": "boolean"
+  },
+  "LongitudinalAcceleration": {
+    "category": "Driving",
+    "type": "real"
+  },
+  "MaxSpeedToReachDestinationMph": {
+    "category": "Location",
+    "type": "real"
+  },
+  "MediaAudioVolume": {
+    "category": "Media",
+    "type": "real"
+  },
+  "MediaAudioVolumeIncrement": {
+    "category": "Media",
+    "type": "real"
+  },
+  "MediaAudioVolumeMax": {
+    "category": "Media",
+    "type": "real"
+  },
+  "MediaNowPlayingAlbum": {
+    "category": "Media",
+    "type": "string"
+  },
+  "MediaNowPlayingArtist": {
+    "category": "Media",
+    "type": "string"
+  },
+  "MediaNowPlayingDuration": {
+    "category": "Media",
+    "type": "integer"
+  },
+  "MediaNowPlayingElapsed": {
+    "category": "Media",
+    "type": "integer"
+  },
+  "MediaNowPlayingStation": {
+    "category": "Media",
+    "type": "string"
+  },
+  "MediaNowPlayingTitle": {
+    "category": "Media",
+    "type": "string"
+  },
+  "MediaPlaybackSource": {
+    "category": "Media",
+    "type": "string"
+  },
+  "MediaPlaybackStatus": {
+    "category": "Media",
+    "type": "MediaStatus enum"
+  },
+  "MilesSinceReset": {
+    "category": "Safety",
+    "type": "real"
+  },
+  "MilesToArrival": {
+    "category": "Location",
+    "type": "real"
+  },
+  "MinutesToArrival": {
+    "category": "Location",
+    "type": "real"
+  },
+  "ModuleTempMax": {
+    "category": "Charging",
+    "type": "real"
+  },
+  "ModuleTempMin": {
+    "category": "Charging",
+    "type": "real"
+  },
+  "NominalFullPackEnergyKwh": {
+    "category": "Charging",
+    "type": "real"
+  },
+  "NotEnoughPowerToHeat": {
+    "category": "Charging",
+    "type": "boolean"
+  },
+  "NumBrickVoltageMax": {
+    "category": "Charging",
+    "type": "integer"
+  },
+  "NumBrickVoltageMin": {
+    "category": "Charging",
+    "type": "integer"
+  },
+  "NumModuleTempMax": {
+    "category": "Charging",
+    "type": "integer"
+  },
+  "NumModuleTempMin": {
+    "category": "Charging",
+    "type": "integer"
+  },
+  "Odometer": {
+    "category": "Vehicle State",
+    "type": "real"
+  },
+  "OffroadLightbarPresent": {
+    "category": "Vehicle Configuration",
+    "type": "boolean"
+  },
+  "OriginLocation": {
+    "category": "Location",
+    "type": "Location"
+  },
+  "OutsideTemp": {
+    "category": "Climate",
+    "type": "real"
+  },
+  "PackCurrent": {
+    "category": "Charging",
+    "type": "real"
+  },
+  "PackVoltage": {
+    "category": "Charging",
+    "type": "real"
+  },
+  "PairedPhoneKeyAndKeyFobQty": {
+    "category": "Vehicle State",
+    "type": "integer"
+  },
+  "PassengerSeatBelt": {
+    "category": "Safety",
+    "type": "BuckleStatus enum"
+  },
+  "PedalPosition": {
+    "category": "Driving",
+    "type": "real"
+  },
+  "PinToDriveEnabled": {
+    "category": "Safety",
+    "type": "boolean"
+  },
+  "PowershareHoursLeft": {
+    "category": "Charging",
+    "type": "integer"
+  },
+  "PowershareInstantaneousPowerKW": {
+    "category": "Charging",
+    "type": "real"
+  },
+  "PowershareStatus": {
+    "category": "Charging",
+    "type": "PowershareState enum"
+  },
+  "PowershareStopReason": {
+    "category": "Charging",
+    "type": "PowershareStopReasonStatus enum"
+  },
+  "PowershareType": {
+    "category": "Charging",
+    "type": "PowershareTypeStatus enum"
+  },
+  "PreconditioningEnabled": {
+    "category": "Charging",
+    "type": "boolean"
+  },
+  "RatedRange": {
+    "category": "Charging",
+    "type": "real"
+  },
+  "RdWindow": {
+    "category": "Vehicle State",
+    "type": "WindowState enum"
+  },
+  "RearDefrostEnabled": {
+    "category": "Climate",
+    "type": "boolean"
+  },
+  "RearDisplayHvacEnabled": {
+    "category": "Climate",
+    "type": "boolean"
+  },
+  "RearSeatHeaters": {
+    "category": "Vehicle Configuration",
+    "type": "string"
+  },
+  "RemoteStartActive": {
+    "category": "Vehicle State",
+    "type": "boolean"
+  },
+  "RemoteStartEnabled": {
+    "category": "Vehicle Configuration",
+    "type": "boolean"
+  },
+  "RightHandDrive": {
+    "category": "Vehicle Configuration",
+    "type": "boolean"
+  },
+  "RoofColor": {
+    "category": "Vehicle Configuration",
+    "type": "string"
+  },
+  "RouteLastUpdated": {
+    "category": "Location",
+    "type": "time"
+  },
+  "RouteLine": {
+    "category": "Location",
+    "type": "string"
+  },
+  "RouteTrafficMinutesDelay": {
+    "category": "Driving",
+    "type": "real"
+  },
+  "RpWindow": {
+    "category": "Vehicle State",
+    "type": "WindowState enum"
+  },
+  "ScheduledChargingMode": {
+    "category": "Charging",
+    "type": "ScheduledChargingModeValue enum"
+  },
+  "ScheduledChargingPending": {
+    "category": "Charging",
+    "type": "boolean"
+  },
+  "ScheduledChargingStartTime": {
+    "category": "Charging",
+    "type": "timestamp"
+  },
+  "ScheduledDepartureTime": {
+    "category": "Charging",
+    "type": "integer"
+  },
+  "SeatHeaterLeft": {
+    "category": "Climate",
+    "type": "integer"
+  },
+  "SeatHeaterRearCenter": {
+    "category": "Climate",
+    "type": "integer"
+  },
+  "SeatHeaterRearLeft": {
+    "category": "Climate",
+    "type": "integer"
+  },
+  "SeatHeaterRearRight": {
+    "category": "Climate",
+    "type": "integer"
+  },
+  "SeatHeaterRight": {
+    "category": "Climate",
+    "type": "integer"
+  },
+  "SeatVentEnabled": {
+    "category": "Climate",
+    "type": "boolean"
+  },
+  "SelfDrivingMilesSinceReset": {
+    "category": "Safety",
+    "type": "real"
+  },
+  "SemiCruiseSpeedLimitMph": {
+    "category": "Driving",
+    "type": "real"
+  },
+  "SemitruckPassengerSeatFoldPosition": {
+    "category": "Vehicle State",
+    "type": "enum"
+  },
+  "SemitruckTpmsPressureRe1L0": {
+    "category": "Service",
+    "type": "real"
+  },
+  "SemitruckTpmsPressureRe1L1": {
+    "category": "Service",
+    "type": "real"
+  },
+  "SemitruckTpmsPressureRe1R0": {
+    "category": "Service",
+    "type": "real"
+  },
+  "SemitruckTpmsPressureRe1R1": {
+    "category": "Service",
+    "type": "real"
+  },
+  "SemitruckTpmsPressureRe2L0": {
+    "category": "Service",
+    "type": "real"
+  },
+  "SemitruckTpmsPressureRe2L1": {
+    "category": "Service",
+    "type": "real"
+  },
+  "SemitruckTpmsPressureRe2R0": {
+    "category": "Service",
+    "type": "real"
+  },
+  "SemitruckTpmsPressureRe2R1": {
+    "category": "Service",
+    "type": "real"
+  },
+  "SemitruckTractorParkBrakeStatus": {
+    "category": "Vehicle State",
+    "type": "enum"
+  },
+  "SemitruckTrailerParkBrakeStatus": {
+    "category": "Vehicle State",
+    "type": "enum"
+  },
+  "SentryMode": {
+    "category": "Vehicle State",
+    "type": "SentryModeState enum"
+  },
+  "ServiceMode": {
+    "category": "Vehicle State",
+    "type": "boolean"
+  },
+  "Setting24HourTime": {
+    "category": "User Preference",
+    "type": "boolean"
+  },
+  "SettingChargeUnit": {
+    "category": "User Preference",
+    "type": "ChargeUnitPreference enum"
+  },
+  "SettingDistanceUnit": {
+    "category": "User Preference",
+    "type": "DistanceUnit enum"
+  },
+  "SettingTemperatureUnit": {
+    "category": "User Preference",
+    "type": "TemperatureUnit enum"
+  },
+  "SettingTirePressureUnit": {
+    "category": "User Preference",
+    "type": "PressureUnit enum"
+  },
+  "Soc": {
+    "category": "Charging",
+    "type": "real"
+  },
+  "SoftwareUpdateAvailable": {
+    "category": "Service",
+    "type": "boolean"
+  },
+  "SoftwareUpdateDownloadPercentComplete": {
+    "category": "Vehicle State",
+    "type": "integer"
+  },
+  "SoftwareUpdateExpectedDurationMinutes": {
+    "category": "Vehicle State",
+    "type": "integer"
+  },
+  "SoftwareUpdateInProgress": {
+    "category": "Service",
+    "type": "boolean"
+  },
+  "SoftwareUpdateInstallationPercentComplete": {
+    "category": "Vehicle State",
+    "type": "integer"
+  },
+  "SoftwareUpdateScheduledStartTime": {
+    "category": "Vehicle State",
+    "type": "timestamp"
+  },
+  "SoftwareUpdateVersion": {
+    "category": "Vehicle State",
+    "type": "string"
+  },
+  "SpeedLimitMode": {
+    "category": "Vehicle State",
+    "type": "boolean"
+  },
+  "SpeedLimitWarning": {
+    "category": "Safety",
+    "type": "SpeedAssistLevel enum"
+  },
+  "SunroofInstalled": {
+    "category": "Vehicle Configuration",
+    "type": "SunroofInstalledState enum"
+  },
+  "SuperchargerSessionTripPlanner": {
+    "category": "Charging",
+    "type": "boolean"
+  },
+  "TimeToFullCharge": {
+    "category": "Charging",
+    "type": "real"
+  },
+  "TonneauOpenPercent": {
+    "category": "Vehicle State",
+    "type": "real"
+  },
+  "TonneauPosition": {
+    "category": "Vehicle State",
+    "type": "TonneauPositionState enum"
+  },
+  "TonneauTentMode": {
+    "category": "Vehicle State",
+    "type": "TonneauTentModeState enum"
+  },
+  "TpmsHardWarnings": {
+    "category": "Service",
+    "type": "TireLocation enum"
+  },
+  "TpmsLastSeenPressureTimeFl": {
+    "category": "Service",
+    "type": "timestamp"
+  },
+  "TpmsLastSeenPressureTimeFr": {
+    "category": "Service",
+    "type": "timestamp"
+  },
+  "TpmsLastSeenPressureTimeRl": {
+    "category": "Service",
+    "type": "timestamp"
+  },
+  "TpmsLastSeenPressureTimeRr": {
+    "category": "Service",
+    "type": "timestamp"
+  },
+  "TpmsPressureFl": {
+    "category": "Service",
+    "type": "real"
+  },
+  "TpmsPressureFr": {
+    "category": "Service",
+    "type": "real"
+  },
+  "TpmsPressureRl": {
+    "category": "Service",
+    "type": "real"
+  },
+  "TpmsPressureRr": {
+    "category": "Service",
+    "type": "real"
+  },
+  "TpmsSoftWarnings": {
+    "category": "Service",
+    "type": "TireLocation enum"
+  },
+  "Trim": {
+    "category": "Vehicle Configuration",
+    "type": "string"
+  },
+  "ValetModeEnabled": {
+    "category": "Vehicle State",
+    "type": "boolean"
+  },
+  "VehicleName": {
+    "category": "Vehicle Configuration",
+    "type": "string"
+  },
+  "VehicleSpeed": {
+    "category": "Driving",
+    "type": "real"
+  },
+  "Version": {
+    "category": "Vehicle Configuration",
+    "type": "string"
+  },
+  "WheelType": {
+    "category": "Vehicle Configuration",
+    "type": "string"
+  },
+  "WiperHeatEnabled": {
+    "category": "Climate",
+    "type": "boolean"
+  }
+}

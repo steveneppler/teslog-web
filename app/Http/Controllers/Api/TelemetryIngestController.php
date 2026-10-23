@@ -43,12 +43,19 @@ class TelemetryIngestController extends Controller
                     continue;
                 }
 
+                $value = $field['value'];
+                if (is_array($value) || is_object($value)) {
+                    $value = json_encode($value, JSON_THROW_ON_ERROR);
+                } elseif (is_bool($value)) {
+                    $value = $value ? 'true' : 'false';
+                }
+
                 $rows[] = [
                     'vehicle_id' => $vehicle->id,
                     'timestamp' => $timestamp,
                     'field_name' => $field['key'] ?? '',
-                    'value_numeric' => is_numeric($field['value']) ? (float) $field['value'] : null,
-                    'value_string' => ! is_numeric($field['value']) ? (string) $field['value'] : null,
+                    'value_numeric' => is_numeric($value) ? (float) $value : null,
+                    'value_string' => ! is_numeric($value) ? (string) $value : null,
                     'processed' => false,
                     'created_at' => $now,
                 ];
