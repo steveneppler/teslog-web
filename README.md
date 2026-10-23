@@ -426,6 +426,53 @@ php artisan teslog:fleet-telemetry --register-partner
 php artisan teslog:fleet-telemetry
 ```
 
+## Telemetry signal preferences
+
+Settings → Telemetry collection provides per-vehicle opt-in collection for all
+253 public fields in the bundled Tesla catalog (snapshot: October 23, 2026).
+239 come from [Available Data](https://developer.tesla.com/docs/fleet-api/fleet-telemetry/available-data),
+with 14 additional public fields from Tesla's
+[Field protocol enum](https://github.com/teslamotors/fleet-telemetry/blob/main/protos/vehicle_data.proto).
+Reserved Unknown, Deprecated_* and Experimental_* enum entries are excluded.
+Not every field is supported by every vehicle or firmware version.
+
+- Existing installations and new vehicles retain the original 21 signals at
+  30-second intervals until preferences are saved. No opt-in fields are enabled
+  by an upgrade.
+- Select a vehicle, search by field or category, and enable or disable individual
+  signals, including the original signals. Set each enabled field's minimum
+  interval (1–86,400 seconds) and optionally a non-negative minimum change for
+  numeric fields or Location. Units are Tesla's native units; Location deltas are
+  meters. Restore defaults changes the form, not the vehicle.
+- **Save preferences** persists the desired configuration locally. **Apply saved
+  preferences** sends that saved configuration to Tesla. Unsaved form edits are
+  not sent. Tesla may apply accepted changes later when the vehicle reconnects.
+  Setup, reconnect and automatic repair also use the saved preferences.
+- Disable every signal and save/apply to remove this application's Fleet
+  Telemetry configuration. Automatic repair respects that choice. History is
+  retained. Removing only location or session-related signals can make maps,
+  trips and charge statistics incomplete.
+- The CLI's `--no-location` filters all seven documented restricted location
+  fields, including routes and destinations. Other setup/apply paths require the
+  appropriate Tesla location permission. Availability is not guaranteed by
+  appearing in this catalog: key pairing, hardware, permissions and firmware
+  still determine what Tesla accepts and emits.
+- Additional signals are retained in `telemetry_raw` and available through the
+  existing Debug raw-history view and JSON export (enable Debug Mode). They do
+  not automatically acquire processed columns, dashboards or battery-health
+  formulas. The existing derived-state sampling interval is unchanged.
+- Long text and structured values are preserved, including the complete Location
+  JSON alongside its derived coordinates. The migration widens raw string
+  storage; rollback intentionally does not shrink it and risk truncating history.
+- More signals and shorter intervals can increase Tesla API charges and storage.
+  Signals normally transmit on change, so intervals are not guaranteed sampling
+  periods. This does not implement a Profiler mode or recover past readings.
+
+The catalog is local: there is no documentation fetch during requests or startup.
+Maintainers can refresh it with `python3 bin/update-telemetry-catalog.py` and review
+its diff, including metadata for new protocol-only fields. No vehicle config is
+changed by refreshing the catalog.
+
 ## Security
 
 - **Single-user lock** — Registration is disabled after the first account is created

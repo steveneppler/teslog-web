@@ -2,6 +2,8 @@
 
 namespace App\Services;
 
+use App\Models\Vehicle;
+use App\Support\TelemetryFields;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
@@ -177,42 +179,16 @@ class TeslaAuthService
         $hostname = config('tesla.fleet_telemetry.hostname');
         $port = (int) config('tesla.fleet_telemetry.port');
 
-        $fields = [
-            'BatteryLevel',
-            'ChargeState',
-            'ChargeLimitSoc',
-            'ACChargingPower',
-            'DCChargingPower',
-            'ChargerVoltage',
-            'ChargeAmps',
-            'EnergyRemaining',
-            'IdealBatteryRange',
-            'RatedRange',
-            'VehicleSpeed',
-            'Odometer',
-            'Gear',
-            'Location',
-            'GpsHeading',
-            'InsideTemp',
-            'OutsideTemp',
-            'Locked',
-            'SentryMode',
-            'HvacACEnabled',
-            'Version',
-        ];
-
-        if (! $includeLocation) {
-            $fields = array_filter($fields, fn ($f) => ! in_array($f, ['Location', 'GpsHeading']));
+        $vehicle = Vehicle::where('vin', $vin)->first();
+        $fieldConfig = TelemetryFields::forVehicle($vehicle?->telemetry_fields, $includeLocation);
+        if ($fieldConfig === []) {
+            return $this->disableFleetTelemetry($accessToken, $vin);
         }
-
-        $fieldConfig = collect($fields)->mapWithKeys(function (string $field) {
-            return [$field => ['interval_seconds' => 30]];
-        })->toArray();
 
         // Read the CA certificate for mTLS
         $caPath = config('tesla.fleet_telemetry.ca_cert_path');
         if (! $caPath || ! file_exists($caPath)) {
-            throw new \RuntimeException('Fleet Telemetry CA certificate not found at: ' . ($caPath ?: 'not configured'));
+            throw new \RuntimeException('Fleet Telemetry CA certificate not found at: '.($caPath ?: 'not configured'));
         }
         $caCert = file_get_contents($caPath);
 
@@ -234,10 +210,17 @@ class TeslaAuthService
             ]);
 
         if ($response->failed()) {
-            throw new \RuntimeException('Failed to configure fleet telemetry: ' . $response->body());
+            throw new \RuntimeException('Failed to configure fleet telemetry: '.$response->body());
         }
 
-        return $response->json();
+        $result = $response->json();
+        foreach (data_get($result, 'response.skipped_vehicles', []) as $reason => $vins) {
+            if (in_array($vin, (array) $vins, true)) {
+                throw new \RuntimeException('Fleet Telemetry configuration rejected: '.$reason);
+            }
+        }
+
+        return $result;
     }
 
     /**

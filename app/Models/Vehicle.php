@@ -27,6 +27,7 @@ class Vehicle extends Model
         'tesla_refresh_token',
         'tesla_token_expires_at',
         'latest_state_id',
+        'telemetry_fields',
     ];
 
     protected $hidden = [
@@ -38,6 +39,7 @@ class Vehicle extends Model
     {
         return [
             'is_active' => 'boolean',
+            'telemetry_fields' => 'array',
             'show_on_dashboard' => 'boolean',
             'tesla_access_token' => 'encrypted',
             'tesla_refresh_token' => 'encrypted',

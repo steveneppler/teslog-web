@@ -188,6 +188,10 @@
         </button>
     </form>
 
+    <div class="mt-6 max-w-2xl">
+        <livewire:telemetry-settings />
+    </div>
+
     {{-- Database Backup & Restore --}}
     @if(config('database.default') === 'sqlite')
     <div class="mt-6 max-w-2xl" x-data="{ showRestore: false, confirmRestore: false }">
